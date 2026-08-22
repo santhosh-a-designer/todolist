@@ -1,12 +1,12 @@
 /**
- * Todoist Style Time Slots & Student Fee Tracker Application
- * Clean single-page application with dynamic remaining potential calculation
+ * Todoist Style Multi-List Management & Projects Dashboard
+ * Supports both Student Fee Batches Trackers and Quick Tasks Lists
  */
 
-const DATA_VERSION = 'v4_clean_layout_and_dynamic_potential';
+const DATA_VERSION = 'v5_multi_project_dashboard';
 
-// Comprehensive Seed Data (All time slots & student batches)
-const DEFAULT_SAMPLE_DATA = [
+// Default Sample Datasets
+const DEFAULT_FEE_SLOTS = [
   {
     id: 'slot-1',
     name: '8-9AM',
@@ -145,8 +145,27 @@ const DEFAULT_SAMPLE_DATA = [
   }
 ];
 
-const CURRENCIES = [
-  { symbol: '₹', code: 'INR', name: 'INR (₹)' }
+const DEFAULT_QUICK_TASKS = [
+  { id: 't-1', text: 'Call student parents regarding batch timings', completed: false },
+  { id: 't-2', text: 'Review syllabus for 11-12PM batch', completed: true },
+  { id: 't-3', text: 'Send fee receipt to Krithi', completed: false }
+];
+
+const DEFAULT_PROJECTS = [
+  {
+    id: 'proj-fees-1',
+    name: 'Student Fee Batches',
+    type: 'fees',
+    color: '#db4c3f',
+    slots: DEFAULT_FEE_SLOTS
+  },
+  {
+    id: 'proj-tasks-1',
+    name: 'Quick Tasks & Notes',
+    type: 'tasks',
+    color: '#3b82f6',
+    tasks: DEFAULT_QUICK_TASKS
+  }
 ];
 
 /**
@@ -166,68 +185,127 @@ function parseNameAndFee(inputStr, fallbackFee = 0) {
   return { name: trimmed, fee: fallbackFee };
 }
 
-class TodoistApp {
+class TodoistMultiApp {
   constructor() {
-    this.slots = this.loadSlots();
-    this.currencyIndex = 0;
+    this.projects = this.loadProjects();
+    this.activeProjectId = localStorage.getItem('todoist_active_project') || this.projects[0].id;
+    this.currentView = 'project'; // 'project' or 'dashboard'
     this.searchQuery = '';
     this.allCollapsed = false;
     this.editingStudentId = null;
     this.editingSlotId = null;
+    this.editingTaskId = null;
 
     // DOM Elements
-    this.slotsContainer = document.getElementById('slotsContainer');
     this.sidebar = document.getElementById('sidebar');
     this.sidebarOpenBtn = document.getElementById('sidebarOpenBtn');
     this.sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
-    this.quickAddSlotBtn = document.getElementById('quickAddSlotBtn');
-    this.showAddSlotFormBtn = document.getElementById('showAddSlotFormBtn');
-    this.inlineAddSlotForm = document.getElementById('inlineAddSlotForm');
-    this.cancelAddSlotBtn = document.getElementById('cancelAddSlotBtn');
-    this.newSlotNameInput = document.getElementById('newSlotNameInput');
-    this.newSlotDateInput = document.getElementById('newSlotDateInput');
+    this.sidebarQuickAddBtn = document.getElementById('sidebarQuickAddBtn');
+    this.sidebarQuickAddLabel = document.getElementById('sidebarQuickAddLabel');
     this.sidebarSearchInput = document.getElementById('sidebarSearchInput');
+    this.navDashboard = document.getElementById('navDashboard');
+    this.totalProjectsCount = document.getElementById('totalProjectsCount');
+    this.sidebarProjectsList = document.getElementById('sidebarProjectsList');
+    this.openAddProjectFormBtn = document.getElementById('openAddProjectFormBtn');
+    this.inlineAddProjectForm = document.getElementById('inlineAddProjectForm');
+    this.newProjectNameInput = document.getElementById('newProjectNameInput');
+    this.newProjectTypeSelect = document.getElementById('newProjectTypeSelect');
+    this.newProjectColorInput = document.getElementById('newProjectColorInput');
+    this.cancelAddProjectBtn = document.getElementById('cancelAddProjectBtn');
+
+    // Sidebar Earnings Card
+    this.sidebarEarningsCard = document.getElementById('sidebarEarningsCard');
+    this.sidebarCardTitle = document.getElementById('sidebarCardTitle');
+    this.sidebarStat1Label = document.getElementById('sidebarStat1Label');
+    this.sidebarStat2Label = document.getElementById('sidebarStat2Label');
+    this.sidebarTotalEarned = document.getElementById('sidebarTotalEarned');
+    this.sidebarTotalPotential = document.getElementById('sidebarTotalPotential');
+    this.earningsPercentage = document.getElementById('earningsPercentage');
+    this.sidebarProgressFill = document.getElementById('sidebarProgressFill');
+
+    // Main Header Elements
+    this.mainViewTitle = document.getElementById('mainViewTitle');
+    this.topHeaderRightActions = document.getElementById('topHeaderRightActions');
+    this.headerPotentialChip = document.getElementById('headerPotentialChip');
+    this.headerEarnedChip = document.getElementById('headerEarnedChip');
+    this.headerChip1Label = document.getElementById('headerChip1Label');
+    this.headerChip2Label = document.getElementById('headerChip2Label');
+    this.headerTotalPotential = document.getElementById('headerTotalPotential');
+    this.headerTotalEarned = document.getElementById('headerTotalEarned');
     this.toggleAllSlotsBtn = document.getElementById('toggleAllSlotsBtn');
     this.toggleAllSlotsText = document.getElementById('toggleAllSlotsText');
+
+    // Views
+    this.dashboardView = document.getElementById('dashboardView');
+    this.dashboardGrid = document.getElementById('dashboardGrid');
+    this.slotsContainer = document.getElementById('slotsContainer');
+    this.quickTasksContainer = document.getElementById('quickTasksContainer');
+    this.quickTasksList = document.getElementById('quickTasksList');
+    this.addSlotSection = document.getElementById('addSlotSection');
+
+    // Add Slot Form elements
+    this.showAddSlotFormBtn = document.getElementById('showAddSlotFormBtn');
+    this.inlineAddSlotForm = document.getElementById('inlineAddSlotForm');
+    this.newSlotNameInput = document.getElementById('newSlotNameInput');
+    this.newSlotDateInput = document.getElementById('newSlotDateInput');
+    this.cancelAddSlotBtn = document.getElementById('cancelAddSlotBtn');
+
+    // Add Quick Task Form elements
+    this.showQuickTaskFormBtn = document.getElementById('showQuickTaskFormBtn');
+    this.inlineQuickTaskForm = document.getElementById('inlineQuickTaskForm');
+    this.quickTaskTextInput = document.getElementById('quickTaskTextInput');
+    this.cancelQuickTaskBtn = document.getElementById('cancelQuickTaskBtn');
+
     this.toastContainer = document.getElementById('toastContainer');
 
     this.init();
   }
 
-  get currentCurrency() {
-    return CURRENCIES[0];
+  get activeProject() {
+    return this.projects.find(p => p.id === this.activeProjectId) || this.projects[0];
   }
 
   formatCurrency(amount) {
-    const sym = this.currentCurrency.symbol;
     const num = Number(amount) || 0;
-    return `${sym}${num.toLocaleString('en-IN')}`;
+    return `₹${num.toLocaleString('en-IN')}`;
   }
 
-  loadSlots() {
+  loadProjects() {
     try {
-      const storedVersion = localStorage.getItem('todoist_data_version');
+      const storedVersion = localStorage.getItem('todoist_multi_version');
       if (storedVersion !== DATA_VERSION) {
-        localStorage.setItem('todoist_data_version', DATA_VERSION);
-        localStorage.setItem('todoist_time_slots', JSON.stringify(DEFAULT_SAMPLE_DATA));
-        return JSON.parse(JSON.stringify(DEFAULT_SAMPLE_DATA));
+        // Upgrade / Migrate previous single list data if exists
+        const previousSlots = localStorage.getItem('todoist_time_slots');
+        let initialProjects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+        if (previousSlots) {
+          try {
+            const parsedSlots = JSON.parse(previousSlots);
+            if (Array.isArray(parsedSlots) && parsedSlots.length > 0) {
+              initialProjects[0].slots = parsedSlots;
+            }
+          } catch (e) {}
+        }
+        localStorage.setItem('todoist_multi_version', DATA_VERSION);
+        localStorage.setItem('todoist_projects_data', JSON.stringify(initialProjects));
+        return initialProjects;
       }
 
-      const saved = localStorage.getItem('todoist_time_slots');
+      const saved = localStorage.getItem('todoist_projects_data');
       if (saved) {
         return JSON.parse(saved);
       }
     } catch (e) {
-      console.error('Failed to load slots from localStorage', e);
+      console.error('Failed to load projects from localStorage', e);
     }
-    return JSON.parse(JSON.stringify(DEFAULT_SAMPLE_DATA));
+    return JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
   }
 
-  saveSlots() {
+  saveProjects() {
     try {
-      localStorage.setItem('todoist_time_slots', JSON.stringify(this.slots));
+      localStorage.setItem('todoist_projects_data', JSON.stringify(this.projects));
+      localStorage.setItem('todoist_active_project', this.activeProjectId);
     } catch (e) {
-      console.error('Failed to save slots to localStorage', e);
+      console.error('Failed to save projects to localStorage', e);
     }
   }
 
@@ -250,7 +328,6 @@ class TodoistApp {
       });
     }
 
-    // Close sidebar on click outside on mobile
     document.addEventListener('click', (e) => {
       if (window.innerWidth <= 840 && this.sidebar.classList.contains('open')) {
         if (!this.sidebar.contains(e.target) && !this.sidebarOpenBtn.contains(e.target)) {
@@ -259,16 +336,81 @@ class TodoistApp {
       }
     });
 
-    // Add Slot Handlers
-    const openAddSlotForm = () => {
-      this.inlineAddSlotForm.classList.remove('hidden');
-      this.showAddSlotFormBtn.style.display = 'none';
-      this.newSlotNameInput.focus();
-      this.inlineAddSlotForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    };
+    // Sidebar Dashboard link
+    if (this.navDashboard) {
+      this.navDashboard.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.currentView = 'dashboard';
+        this.render();
+      });
+    }
 
-    if (this.quickAddSlotBtn) this.quickAddSlotBtn.addEventListener('click', openAddSlotForm);
-    if (this.showAddSlotFormBtn) this.showAddSlotFormBtn.addEventListener('click', openAddSlotForm);
+    // Sidebar Quick Add button
+    if (this.sidebarQuickAddBtn) {
+      this.sidebarQuickAddBtn.addEventListener('click', () => {
+        if (this.currentView === 'dashboard') {
+          this.openAddProjectForm();
+        } else if (this.activeProject.type === 'fees') {
+          this.openAddSlotForm();
+        } else {
+          this.openQuickTaskForm();
+        }
+      });
+    }
+
+    // Search filter
+    if (this.sidebarSearchInput) {
+      this.sidebarSearchInput.addEventListener('input', (e) => {
+        this.searchQuery = e.target.value.toLowerCase().trim();
+        this.render();
+      });
+    }
+
+    // Add Project Sidebar triggers
+    if (this.openAddProjectFormBtn) {
+      this.openAddProjectFormBtn.addEventListener('click', () => this.openAddProjectForm());
+    }
+
+    if (this.cancelAddProjectBtn) {
+      this.cancelAddProjectBtn.addEventListener('click', () => {
+        this.inlineAddProjectForm.classList.add('hidden');
+        this.newProjectNameInput.value = '';
+      });
+    }
+
+    if (this.inlineAddProjectForm) {
+      this.inlineAddProjectForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = this.newProjectNameInput.value.trim();
+        const type = this.newProjectTypeSelect.value;
+        const color = this.newProjectColorInput.value || '#db4c3f';
+        if (!name) return;
+
+        const newProject = {
+          id: 'proj-' + Date.now(),
+          name,
+          type,
+          color,
+          slots: type === 'fees' ? [] : undefined,
+          tasks: type === 'tasks' ? [] : undefined
+        };
+
+        this.projects.push(newProject);
+        this.activeProjectId = newProject.id;
+        this.currentView = 'project';
+        this.saveProjects();
+        this.render();
+
+        this.newProjectNameInput.value = '';
+        this.inlineAddProjectForm.classList.add('hidden');
+        this.showToast(`Project "${name}" created!`);
+      });
+    }
+
+    // Fee Project: Add Slot handlers
+    if (this.showAddSlotFormBtn) {
+      this.showAddSlotFormBtn.addEventListener('click', () => this.openAddSlotForm());
+    }
 
     if (this.cancelAddSlotBtn) {
       this.cancelAddSlotBtn.addEventListener('click', () => {
@@ -293,8 +435,9 @@ class TodoistApp {
           students: []
         };
 
-        this.slots.push(newSlot);
-        this.saveSlots();
+        if (!this.activeProject.slots) this.activeProject.slots = [];
+        this.activeProject.slots.push(newSlot);
+        this.saveProjects();
         this.render();
 
         this.newSlotNameInput.value = '';
@@ -304,28 +447,75 @@ class TodoistApp {
       });
     }
 
-    // Search filter
-    if (this.sidebarSearchInput) {
-      this.sidebarSearchInput.addEventListener('input', (e) => {
-        this.searchQuery = e.target.value.toLowerCase().trim();
-        this.render();
+    // Quick Task Form handlers
+    if (this.showQuickTaskFormBtn) {
+      this.showQuickTaskFormBtn.addEventListener('click', () => this.openQuickTaskForm());
+    }
+
+    if (this.cancelQuickTaskBtn) {
+      this.cancelQuickTaskBtn.addEventListener('click', () => {
+        this.inlineQuickTaskForm.classList.add('hidden');
+        this.showQuickTaskFormBtn.style.display = 'flex';
+        this.quickTaskTextInput.value = '';
       });
     }
 
-    // Toggle Collapse / Expand All
+    if (this.inlineQuickTaskForm) {
+      this.inlineQuickTaskForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = this.quickTaskTextInput.value.trim();
+        if (!text) return;
+
+        const newTask = {
+          id: 't-' + Date.now(),
+          text,
+          completed: false
+        };
+
+        if (!this.activeProject.tasks) this.activeProject.tasks = [];
+        this.activeProject.tasks.push(newTask);
+        this.saveProjects();
+        this.render();
+
+        this.quickTaskTextInput.value = '';
+        this.quickTaskTextInput.focus();
+        this.showToast(`Task added!`);
+      });
+    }
+
+    // Collapse All Slots
     if (this.toggleAllSlotsBtn) {
       this.toggleAllSlotsBtn.addEventListener('click', () => {
+        if (!this.activeProject.slots) return;
         this.allCollapsed = !this.allCollapsed;
-        this.slots.forEach(slot => {
+        this.activeProject.slots.forEach(slot => {
           slot.collapsed = this.allCollapsed;
         });
         if (this.toggleAllSlotsText) {
           this.toggleAllSlotsText.textContent = this.allCollapsed ? 'Expand all' : 'Collapse all';
         }
-        this.saveSlots();
+        this.saveProjects();
         this.render();
       });
     }
+  }
+
+  openAddProjectForm() {
+    this.inlineAddProjectForm.classList.remove('hidden');
+    this.newProjectNameInput.focus();
+  }
+
+  openAddSlotForm() {
+    this.inlineAddSlotForm.classList.remove('hidden');
+    this.showAddSlotFormBtn.style.display = 'none';
+    this.newSlotNameInput.focus();
+    this.inlineAddSlotForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  openQuickTaskForm() {
+    this.inlineQuickTaskForm.classList.remove('hidden');
+    this.showQuickTaskFormBtn.style.display = 'none';
+    this.quickTaskTextInput.focus();
   }
 
   showToast(message) {
@@ -347,73 +537,356 @@ class TodoistApp {
     }, 2200);
   }
 
-  calculateStats() {
-    let totalGross = 0;
-    let totalEarned = 0;
-    let potentialRemaining = 0;
-    let totalStudents = 0;
-    let completedStudents = 0;
+  calculateProjectStats(project) {
+    if (project.type === 'fees') {
+      let totalGross = 0;
+      let totalEarned = 0;
+      let potentialRemaining = 0;
+      let totalStudents = 0;
+      let completedStudents = 0;
 
-    this.slots.forEach(slot => {
-      slot.students.forEach(student => {
-        const fee = Number(student.fee) || 0;
-        totalGross += fee;
-        totalStudents += 1;
-        if (student.completed) {
-          totalEarned += fee;
-          completedStudents += 1;
-        } else {
-          potentialRemaining += fee;
-        }
+      (project.slots || []).forEach(slot => {
+        (slot.students || []).forEach(student => {
+          const fee = Number(student.fee) || 0;
+          totalGross += fee;
+          totalStudents += 1;
+          if (student.completed) {
+            totalEarned += fee;
+            completedStudents += 1;
+          } else {
+            potentialRemaining += fee;
+          }
+        });
       });
-    });
 
-    const percentage = totalGross > 0 ? Math.round((totalEarned / totalGross) * 100) : 0;
-
-    return {
-      totalGross,
-      totalEarned,
-      potentialRemaining,
-      percentage,
-      totalStudents,
-      completedStudents,
-      pendingStudents: totalStudents - completedStudents
-    };
-  }
-
-  updateDashboardUI(stats) {
-    // Header Stats: Potential shows remaining uncollected fees (reduces as items are checked)
-    const headerPotential = document.getElementById('headerTotalPotential');
-    const headerEarned = document.getElementById('headerTotalEarned');
-    if (headerPotential) headerPotential.textContent = this.formatCurrency(stats.potentialRemaining);
-    if (headerEarned) headerEarned.textContent = this.formatCurrency(stats.totalEarned);
-
-    // Sidebar Stats
-    const sidebarEarned = document.getElementById('sidebarTotalEarned');
-    const sidebarPotential = document.getElementById('sidebarTotalPotential');
-    const sidebarPending = document.getElementById('sidebarPendingAmount');
-    const percentBadge = document.getElementById('earningsPercentage');
-    const progressFill = document.getElementById('sidebarProgressFill');
-
-    if (sidebarEarned) sidebarEarned.textContent = this.formatCurrency(stats.totalEarned);
-    if (sidebarPotential) sidebarPotential.textContent = this.formatCurrency(stats.potentialRemaining);
-    if (sidebarPending) sidebarPending.textContent = this.formatCurrency(stats.potentialRemaining);
-    if (percentBadge) percentBadge.textContent = `${stats.percentage}%`;
-    if (progressFill) progressFill.style.width = `${stats.percentage}%`;
+      const percentage = totalGross > 0 ? Math.round((totalEarned / totalGross) * 100) : 0;
+      return {
+        type: 'fees',
+        totalGross,
+        totalEarned,
+        potentialRemaining,
+        percentage,
+        totalCount: totalStudents,
+        completedCount: completedStudents,
+        pendingCount: totalStudents - completedStudents
+      };
+    } else {
+      const tasks = project.tasks || [];
+      const totalCount = tasks.length;
+      const completedCount = tasks.filter(t => t.completed).length;
+      const pendingCount = totalCount - completedCount;
+      const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+      return {
+        type: 'tasks',
+        totalCount,
+        completedCount,
+        pendingCount,
+        percentage
+      };
+    }
   }
 
   render() {
-    const stats = this.calculateStats();
-    this.updateDashboardUI(stats);
+    this.renderSidebarProjects();
 
-    if (!this.slotsContainer) return;
+    if (this.currentView === 'dashboard') {
+      this.renderDashboardView();
+    } else {
+      this.renderProjectView();
+    }
+  }
+
+  renderSidebarProjects() {
+    if (this.totalProjectsCount) {
+      this.totalProjectsCount.textContent = this.projects.length;
+    }
+
+    if (this.navDashboard) {
+      this.navDashboard.classList.toggle('active', this.currentView === 'dashboard');
+    }
+
+    if (!this.sidebarProjectsList) return;
+    this.sidebarProjectsList.innerHTML = '';
+
+    this.projects.forEach(project => {
+      const stats = this.calculateProjectStats(project);
+      const item = document.createElement('div');
+      item.className = `project-nav-item ${this.currentView === 'project' && project.id === this.activeProjectId ? 'active' : ''}`;
+      item.innerHTML = `
+        <span class="project-dot" style="background-color: ${project.color || '#db4c3f'};"></span>
+        <span class="project-nav-name">${escapeHTML(project.name)}</span>
+        <span class="nav-count">${stats.pendingCount}</span>
+      `;
+
+      item.addEventListener('click', () => {
+        this.activeProjectId = project.id;
+        this.currentView = 'project';
+        this.saveProjects();
+        this.render();
+      });
+
+      this.sidebarProjectsList.appendChild(item);
+    });
+
+    // Update Sidebar Quick Add label
+    if (this.sidebarQuickAddLabel) {
+      if (this.currentView === 'dashboard') {
+        this.sidebarQuickAddLabel.textContent = 'Add project';
+      } else if (this.activeProject.type === 'fees') {
+        this.sidebarQuickAddLabel.textContent = 'Add time slot';
+      } else {
+        this.sidebarQuickAddLabel.textContent = 'Add quick task';
+      }
+    }
+  }
+
+  renderDashboardView() {
+    this.dashboardView.classList.remove('hidden');
+    this.slotsContainer.classList.add('hidden');
+    this.quickTasksContainer.classList.add('hidden');
+    this.addSlotSection.classList.add('hidden');
+
+    this.mainViewTitle.textContent = 'All Projects Dashboard';
+    this.topHeaderRightActions.classList.add('hidden');
+
+    // Hide or adjust sidebar card
+    this.sidebarEarningsCard.style.display = 'none';
+
+    this.dashboardGrid.innerHTML = '';
+
+    this.projects.forEach(project => {
+      const stats = this.calculateProjectStats(project);
+      const card = document.createElement('div');
+      card.className = 'project-card';
+      card.innerHTML = `
+        <div>
+          <div class="project-card-top">
+            <div class="card-title-row">
+              <span class="project-dot" style="background-color: ${project.color || '#db4c3f'};"></span>
+              <span class="project-card-name">${escapeHTML(project.name)}</span>
+            </div>
+            <span class="type-badge ${project.type}">${project.type === 'fees' ? 'Fee Tracker' : 'Quick Tasks'}</span>
+          </div>
+
+          <div class="project-card-stats">
+            ${project.type === 'fees' ? `
+              <div><strong>Potential:</strong> ${this.formatCurrency(stats.potentialRemaining)}</div>
+              <div><strong>Earned:</strong> <span class="text-success">${this.formatCurrency(stats.totalEarned)}</span></div>
+              <div><strong>Progress:</strong> ${stats.percentage}% (${stats.completedCount}/${stats.totalCount} paid)</div>
+            ` : `
+              <div><strong>Pending Tasks:</strong> ${stats.pendingCount}</div>
+              <div><strong>Completed:</strong> ${stats.completedCount}</div>
+              <div><strong>Completion:</strong> ${stats.percentage}%</div>
+            `}
+          </div>
+
+          <div class="progress-bar-container" style="margin-bottom: 0;">
+            <div class="progress-bar-fill" style="width: ${stats.percentage}%;"></div>
+          </div>
+        </div>
+
+        <div class="project-card-actions">
+          <button class="card-open-btn">Open List &rarr;</button>
+          ${this.projects.length > 1 ? `
+            <button class="icon-btn danger delete-project-btn" title="Delete project">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          ` : ''}
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        this.activeProjectId = project.id;
+        this.currentView = 'project';
+        this.saveProjects();
+        this.render();
+      });
+
+      const deleteBtn = card.querySelector('.delete-project-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Delete project "${project.name}"?`)) {
+            this.projects = this.projects.filter(p => p.id !== project.id);
+            this.activeProjectId = this.projects[0].id;
+            this.saveProjects();
+            this.render();
+            this.showToast(`Deleted "${project.name}"`);
+          }
+        });
+      }
+
+      this.dashboardGrid.appendChild(card);
+    });
+
+    // Create New Project Card
+    const createCard = document.createElement('div');
+    createCard.className = 'project-card create-project-card';
+    createCard.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      <span>Create New List</span>
+    `;
+    createCard.addEventListener('click', () => this.openAddProjectForm());
+    this.dashboardGrid.appendChild(createCard);
+  }
+
+  renderProjectView() {
+    const project = this.activeProject;
+    const stats = this.calculateProjectStats(project);
+
+    this.dashboardView.classList.add('hidden');
+    this.topHeaderRightActions.classList.remove('hidden');
+    this.mainViewTitle.textContent = project.name;
+
+    // Sidebar Card Updates
+    this.sidebarEarningsCard.style.display = 'block';
+    if (project.type === 'fees') {
+      this.sidebarCardTitle.textContent = 'Fee Collection';
+      this.sidebarStat1Label.textContent = 'Total Earned';
+      this.sidebarStat2Label.textContent = 'Potential';
+      this.sidebarTotalEarned.textContent = this.formatCurrency(stats.totalEarned);
+      this.sidebarTotalPotential.textContent = this.formatCurrency(stats.potentialRemaining);
+      this.earningsPercentage.textContent = `${stats.percentage}%`;
+      this.sidebarProgressFill.style.width = `${stats.percentage}%`;
+
+      // Header chips
+      this.headerChip1Label.textContent = 'Potential:';
+      this.headerChip2Label.textContent = 'Earned:';
+      this.headerTotalPotential.textContent = this.formatCurrency(stats.potentialRemaining);
+      this.headerTotalEarned.textContent = this.formatCurrency(stats.totalEarned);
+      this.toggleAllSlotsBtn.style.display = 'flex';
+
+      this.slotsContainer.classList.remove('hidden');
+      this.quickTasksContainer.classList.add('hidden');
+      this.addSlotSection.classList.remove('hidden');
+      this.renderFeeSlots(project);
+    } else {
+      this.sidebarCardTitle.textContent = 'Tasks Progress';
+      this.sidebarStat1Label.textContent = 'Completed';
+      this.sidebarStat2Label.textContent = 'Pending';
+      this.sidebarTotalEarned.textContent = stats.completedCount;
+      this.sidebarTotalPotential.textContent = stats.pendingCount;
+      this.earningsPercentage.textContent = `${stats.percentage}%`;
+      this.sidebarProgressFill.style.width = `${stats.percentage}%`;
+
+      // Header chips
+      this.headerChip1Label.textContent = 'Pending:';
+      this.headerChip2Label.textContent = 'Completed:';
+      this.headerTotalPotential.textContent = `${stats.pendingCount} tasks`;
+      this.headerTotalEarned.textContent = `${stats.completedCount} tasks`;
+      this.toggleAllSlotsBtn.style.display = 'none';
+
+      this.slotsContainer.classList.add('hidden');
+      this.quickTasksContainer.classList.remove('hidden');
+      this.addSlotSection.classList.add('hidden');
+      this.renderQuickTasks(project);
+    }
+  }
+
+  renderQuickTasks(project) {
+    this.quickTasksList.innerHTML = '';
+    const tasks = project.tasks || [];
+
+    const filteredTasks = tasks.filter(t => {
+      if (!this.searchQuery) return true;
+      return t.text.toLowerCase().includes(this.searchQuery);
+    });
+
+    if (filteredTasks.length === 0) {
+      this.quickTasksList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+          <div class="empty-state-title">No tasks found</div>
+          <p>Click "+ Add task" below to note down your first item.</p>
+        </div>
+      `;
+      return;
+    }
+
+    filteredTasks.forEach(task => {
+      const row = document.createElement('div');
+      row.className = `quick-task-row ${task.completed ? 'completed' : ''}`;
+      row.innerHTML = `
+        <div class="quick-task-left">
+          <button class="todoist-checkbox" title="${task.completed ? 'Mark incomplete' : 'Mark completed'}" aria-label="Toggle task">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+          <span class="quick-task-text" title="Click to edit">${escapeHTML(task.text)}</span>
+        </div>
+        <div class="quick-task-actions">
+          <button class="icon-btn edit-task-btn" title="Edit task">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="icon-btn danger delete-task-btn" title="Delete task">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      // Toggle check
+      row.querySelector('.todoist-checkbox').addEventListener('click', (e) => {
+        e.stopPropagation();
+        task.completed = !task.completed;
+        this.saveProjects();
+        this.render();
+      });
+
+      // Edit task inline
+      const startEditTask = () => {
+        const newText = prompt('Edit task:', task.text);
+        if (newText !== null && newText.trim() !== '') {
+          task.text = newText.trim();
+          this.saveProjects();
+          this.render();
+        }
+      };
+
+      row.querySelector('.quick-task-text').addEventListener('click', startEditTask);
+      row.querySelector('.edit-task-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        startEditTask();
+      });
+
+      // Delete task
+      row.querySelector('.delete-task-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        project.tasks = project.tasks.filter(t => t.id !== task.id);
+        this.saveProjects();
+        this.render();
+        this.showToast('Task removed');
+      });
+
+      this.quickTasksList.appendChild(row);
+    });
+  }
+
+  renderFeeSlots(project) {
     this.slotsContainer.innerHTML = '';
+    const slots = project.slots || [];
 
-    // Filter slots based on search
-    const filteredSlots = this.slots.filter(slot => {
+    const filteredSlots = slots.filter(slot => {
       if (!this.searchQuery) return true;
       const slotMatches = slot.name.toLowerCase().includes(this.searchQuery);
-      const studentMatches = slot.students.some(s => s.name.toLowerCase().includes(this.searchQuery) || String(s.fee).includes(this.searchQuery));
+      const studentMatches = (slot.students || []).some(s => s.name.toLowerCase().includes(this.searchQuery) || String(s.fee).includes(this.searchQuery));
       return slotMatches || studentMatches;
     });
 
@@ -427,28 +900,27 @@ class TodoistApp {
             </svg>
           </div>
           <div class="empty-state-title">No time slots found</div>
-          <p>Try searching for something else or click "+ Add time slot" below.</p>
+          <p>Click "+ Add time slot" below to start tracking student fees.</p>
         </div>
       `;
       return;
     }
 
     filteredSlots.forEach(slot => {
-      const slotElement = this.createSlotElement(slot);
+      const slotElement = this.createSlotElement(project, slot);
       this.slotsContainer.appendChild(slotElement);
     });
   }
 
-  createSlotElement(slot) {
+  createSlotElement(project, slot) {
     const slotCard = document.createElement('div');
     slotCard.className = `slot-section ${slot.collapsed ? 'collapsed' : ''}`;
     slotCard.id = `slot-elem-${slot.id}`;
 
-    // Calculate slot specific stats
     let slotTotal = 0;
     let slotEarned = 0;
     let slotCompletedCount = 0;
-    slot.students.forEach(s => {
+    (slot.students || []).forEach(s => {
       const fee = Number(s.fee) || 0;
       slotTotal += fee;
       if (s.completed) {
@@ -457,10 +929,9 @@ class TodoistApp {
       }
     });
 
-    const isSlotFullyCompleted = slot.students.length > 0 && slotCompletedCount === slot.students.length;
+    const isSlotFullyCompleted = (slot.students || []).length > 0 && slotCompletedCount === slot.students.length;
     const isEditingSlotTitle = this.editingSlotId === slot.id;
 
-    // Header HTML
     const header = document.createElement('div');
     header.className = 'slot-header';
     header.innerHTML = `
@@ -494,7 +965,7 @@ class TodoistApp {
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
-              <span>${slotCompletedCount}/${slot.students.length}</span>
+              <span>${slotCompletedCount}/${(slot.students || []).length}</span>
             </span>
 
             <span class="date-tag-badge">
@@ -526,26 +997,25 @@ class TodoistApp {
       </div>
     `;
 
-    // Slot Header Collapse Toggle
+    // Toggle collapse
     header.querySelector('.slot-header-left').addEventListener('click', (e) => {
       if (e.target.closest('.slot-circle-icon') || e.target.closest('.slot-title-edit-input')) return;
       slot.collapsed = !slot.collapsed;
-      this.saveSlots();
+      this.saveProjects();
       slotCard.classList.toggle('collapsed', slot.collapsed);
     });
 
-    // Slot Complete-All Circle Toggle
-    const slotCircle = header.querySelector('.slot-circle-icon');
-    slotCircle.addEventListener('click', (e) => {
+    // Complete all in slot
+    header.querySelector('.slot-circle-icon').addEventListener('click', (e) => {
       e.stopPropagation();
       const targetState = !isSlotFullyCompleted;
-      slot.students.forEach(s => s.completed = targetState);
-      this.saveSlots();
+      (slot.students || []).forEach(s => s.completed = targetState);
+      this.saveProjects();
       this.render();
       this.showToast(targetState ? `Marked all in ${slot.name} as paid!` : `Reset status for ${slot.name}`);
     });
 
-    // In-Place Inline Slot Title Editing
+    // Inline edit slot title
     const startSlotEdit = () => {
       this.editingSlotId = slot.id;
       this.render();
@@ -558,12 +1028,11 @@ class TodoistApp {
             const val = input.value.trim();
             if (val) {
               slot.name = val;
-              this.saveSlots();
+              this.saveProjects();
             }
             this.editingSlotId = null;
             this.render();
           };
-
           input.addEventListener('keydown', (evt) => {
             if (evt.key === 'Enter') saveTitle();
             if (evt.key === 'Escape') {
@@ -576,41 +1045,38 @@ class TodoistApp {
       }, 50);
     };
 
-    const editSlotBtn = header.querySelector('.edit-slot-btn');
-    if (editSlotBtn) editSlotBtn.addEventListener('click', (e) => { e.stopPropagation(); startSlotEdit(); });
+    header.querySelector('.edit-slot-btn').addEventListener('click', (e) => { e.stopPropagation(); startSlotEdit(); });
+    const titleSpan = header.querySelector('.slot-title');
+    if (titleSpan) titleSpan.addEventListener('dblclick', (e) => { e.stopPropagation(); startSlotEdit(); });
 
-    const slotTitleSpan = header.querySelector('.slot-title');
-    if (slotTitleSpan) slotTitleSpan.addEventListener('dblclick', (e) => { e.stopPropagation(); startSlotEdit(); });
-
-    // Delete Slot Button
+    // Delete slot
     header.querySelector('.delete-slot-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      this.slots = this.slots.filter(s => s.id !== slot.id);
-      this.saveSlots();
+      project.slots = project.slots.filter(s => s.id !== slot.id);
+      this.saveProjects();
       this.render();
       this.showToast(`Deleted time slot "${slot.name}"`);
     });
 
     slotCard.appendChild(header);
 
-    // Students List
+    // Students list
     const studentsList = document.createElement('div');
     studentsList.className = 'students-list';
 
-    // Filter students if search query exists
-    const displayStudents = slot.students.filter(student => {
+    const displayStudents = (slot.students || []).filter(student => {
       if (!this.searchQuery) return true;
       return student.name.toLowerCase().includes(this.searchQuery) || String(student.fee).includes(this.searchQuery);
     });
 
     displayStudents.forEach(student => {
-      const studentRow = this.createStudentRow(slot, student);
+      const studentRow = this.createStudentRow(project, slot, student);
       studentsList.appendChild(studentRow);
     });
 
     slotCard.appendChild(studentsList);
 
-    // Inline Add Student section
+    // Inline Add Student
     const addStudentWrapper = document.createElement('div');
     addStudentWrapper.className = 'inline-add-student-wrapper';
 
@@ -631,7 +1097,7 @@ class TodoistApp {
     inlineForm.innerHTML = `
       <div class="form-inputs-row">
         <input type="text" placeholder="Name (or Name - Fee, e.g. Aravind - 4000)" class="todoist-input student-name-input" required autocomplete="off">
-        <input type="number" placeholder="Fee (${this.currentCurrency.symbol})" class="todoist-input-sm student-fee-input" min="0">
+        <input type="number" placeholder="Fee (₹)" class="todoist-input-sm student-fee-input" min="0">
       </div>
       <div class="form-actions">
         <button type="submit" class="todoist-btn primary-btn">Add student</button>
@@ -643,7 +1109,6 @@ class TodoistApp {
     const feeInput = inlineForm.querySelector('.student-fee-input');
     const cancelBtn = inlineForm.querySelector('.cancel-btn');
 
-    // Auto-parse fee if user types "Name - 5000" in name input
     nameInput.addEventListener('input', () => {
       const parsed = parseNameAndFee(nameInput.value);
       if (parsed.fee > 0 && !feeInput.value) {
@@ -682,11 +1147,11 @@ class TodoistApp {
         completed: false
       };
 
+      if (!slot.students) slot.students = [];
       slot.students.push(newStudent);
-      this.saveSlots();
+      this.saveProjects();
       this.render();
 
-      // Quick continuous input for fast data entry
       setTimeout(() => {
         const updatedSlotElem = document.getElementById(`slot-elem-${slot.id}`);
         if (updatedSlotElem) {
@@ -711,15 +1176,14 @@ class TodoistApp {
     return slotCard;
   }
 
-  createStudentRow(slot, student) {
-    // Check if this student is currently being edited in-place
+  createStudentRow(project, slot, student) {
     if (this.editingStudentId === student.id) {
       const editFormWrapper = document.createElement('form');
       editFormWrapper.className = 'student-edit-form';
       editFormWrapper.innerHTML = `
         <div class="student-edit-inputs">
-          <input type="text" class="todoist-input edit-name-val" value="${escapeHTML(student.name)}" placeholder="Student Name (e.g. ${escapeHTML(student.name)} - ${student.fee})" required autofocus>
-          <input type="number" class="todoist-input-sm edit-fee-val" value="${student.fee}" placeholder="Fee (${this.currentCurrency.symbol})" min="0" required>
+          <input type="text" class="todoist-input edit-name-val" value="${escapeHTML(student.name)}" placeholder="Student Name" required autofocus>
+          <input type="number" class="todoist-input-sm edit-fee-val" value="${student.fee}" placeholder="Fee (₹)" min="0" required>
         </div>
         <div class="form-actions">
           <button type="submit" class="todoist-btn primary-btn">Save</button>
@@ -731,7 +1195,6 @@ class TodoistApp {
       const editFeeInp = editFormWrapper.querySelector('.edit-fee-val');
       const cancelBtn = editFormWrapper.querySelector('.edit-cancel-btn');
 
-      // Smart parse on typing
       editNameInp.addEventListener('input', () => {
         const parsed = parseNameAndFee(editNameInp.value);
         if (parsed.fee > 0) {
@@ -749,9 +1212,9 @@ class TodoistApp {
         student.fee = !isNaN(rawFee) ? rawFee : (parsed.fee || 0);
 
         this.editingStudentId = null;
-        this.saveSlots();
+        this.saveProjects();
         this.render();
-        this.showToast(`Updated ${student.name} (${this.formatCurrency(student.fee)})`);
+        this.showToast(`Updated ${student.name}`);
       });
 
       editNameInp.addEventListener('keydown', (e) => {
@@ -769,7 +1232,6 @@ class TodoistApp {
       return editFormWrapper;
     }
 
-    // Normal View Mode Row
     const row = document.createElement('div');
     row.className = `student-row ${student.completed ? 'completed' : ''}`;
     row.id = `student-row-${student.id}`;
@@ -803,19 +1265,16 @@ class TodoistApp {
       </div>
     `;
 
-    // Toggle Checkbox
-    const checkbox = row.querySelector('.todoist-checkbox');
-    checkbox.addEventListener('click', (e) => {
+    row.querySelector('.todoist-checkbox').addEventListener('click', (e) => {
       e.stopPropagation();
       student.completed = !student.completed;
-      this.saveSlots();
+      this.saveProjects();
       this.render();
       if (student.completed) {
         this.showToast(`Paid: ${student.name} (${this.formatCurrency(student.fee)})`);
       }
     });
 
-    // In-Place Inline Edit trigger
     const startEdit = (e) => {
       e.stopPropagation();
       this.editingStudentId = student.id;
@@ -832,20 +1291,18 @@ class TodoistApp {
     row.querySelector('.student-details').addEventListener('click', startEdit);
     row.querySelector('.edit-student-btn').addEventListener('click', startEdit);
 
-    // Delete Student
     row.querySelector('.delete-student-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       slot.students = slot.students.filter(s => s.id !== student.id);
-      this.saveSlots();
+      this.saveProjects();
       this.render();
-      this.showToast(`Removed student ${student.name}`);
+      this.showToast(`Removed ${student.name}`);
     });
 
     return row;
   }
 }
 
-// Utility: Escape HTML
 function escapeHTML(str) {
   if (!str) return '';
   return String(str)
@@ -856,7 +1313,6 @@ function escapeHTML(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Start Application on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-  window.todoistApp = new TodoistApp();
+  window.todoistApp = new TodoistMultiApp();
 });
