@@ -37,7 +37,8 @@
   --color-orange: #d97706;
 
   /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
   --radius-sm: 5px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -64,6 +65,7 @@ body {
   background-color: var(--bg-app);
   font-size: 14.5px;
   line-height: 1.6;
+  font-feature-settings: "cv02", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -434,12 +436,7 @@ button, input, select, textarea {
   color: var(--text-muted);
 }
 
-.stat-value {
-  font-size: 15.5px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin-top: 1px;
-}
+
 
 .stat-value.earned {
   color: var(--color-success);
@@ -516,7 +513,11 @@ button, input, select, textarea {
 }
 
 .chip-val {
+  font-family: var(--font-heading);
+  font-weight: 700;
   color: var(--text-main);
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
 }
 
 .chip-val.text-success {
@@ -891,9 +892,12 @@ button, input, select, textarea {
 }
 
 .student-fee {
+  font-family: var(--font-heading);
   font-size: 14.5px;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum";
   transition: color var(--transition-fast);
 }
 
