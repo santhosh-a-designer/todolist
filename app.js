@@ -1,9 +1,9 @@
 /**
  * Todoist Style Time Slots & Student Fee Tracker Application
- * Complete dataset with all batches, live calculations, and in-place inline editing (No Alerts/Prompts)
+ * Clean single-page application with dynamic remaining potential calculation
  */
 
-const DATA_VERSION = 'v3_inline_edit_all_batches';
+const DATA_VERSION = 'v4_clean_layout_and_dynamic_potential';
 
 // Comprehensive Seed Data (All time slots & student batches)
 const DEFAULT_SAMPLE_DATA = [
@@ -146,10 +146,7 @@ const DEFAULT_SAMPLE_DATA = [
 ];
 
 const CURRENCIES = [
-  { symbol: '₹', code: 'INR', name: 'INR (₹)' },
-  { symbol: '$', code: 'USD', name: 'USD ($)' },
-  { symbol: '€', code: 'EUR', name: 'EUR (€)' },
-  { symbol: '£', code: 'GBP', name: 'GBP (£)' }
+  { symbol: '₹', code: 'INR', name: 'INR (₹)' }
 ];
 
 /**
@@ -159,7 +156,6 @@ function parseNameAndFee(inputStr, fallbackFee = 0) {
   if (!inputStr) return { name: '', fee: fallbackFee };
   const trimmed = inputStr.trim();
   
-  // Check if string contains separator like " - " or " — "
   const match = trimmed.match(/^(.*?)(?:\s+[-—–:]\s+|\s+-\s*|\s*-\s+)(\d+(?:\.\d+)?)$/);
   if (match) {
     return {
@@ -173,11 +169,11 @@ function parseNameAndFee(inputStr, fallbackFee = 0) {
 class TodoistApp {
   constructor() {
     this.slots = this.loadSlots();
-    this.currencyIndex = parseInt(localStorage.getItem('todoist_currency_idx') || '0', 10);
+    this.currencyIndex = 0;
     this.searchQuery = '';
     this.allCollapsed = false;
-    this.editingStudentId = null; // Track inline student edit
-    this.editingSlotId = null;    // Track inline slot title edit
+    this.editingStudentId = null;
+    this.editingSlotId = null;
 
     // DOM Elements
     this.slotsContainer = document.getElementById('slotsContainer');
@@ -199,7 +195,7 @@ class TodoistApp {
   }
 
   get currentCurrency() {
-    return CURRENCIES[this.currencyIndex % CURRENCIES.length];
+    return CURRENCIES[0];
   }
 
   formatCurrency(amount) {
@@ -237,19 +233,22 @@ class TodoistApp {
 
   init() {
     this.bindEvents();
-    this.updateCurrencyUI();
     this.render();
   }
 
   bindEvents() {
     // Mobile sidebar toggle
-    this.sidebarOpenBtn.addEventListener('click', () => {
-      this.sidebar.classList.add('open');
-    });
+    if (this.sidebarOpenBtn) {
+      this.sidebarOpenBtn.addEventListener('click', () => {
+        this.sidebar.classList.add('open');
+      });
+    }
 
-    this.sidebarCloseBtn.addEventListener('click', () => {
-      this.sidebar.classList.remove('open');
-    });
+    if (this.sidebarCloseBtn) {
+      this.sidebarCloseBtn.addEventListener('click', () => {
+        this.sidebar.classList.remove('open');
+      });
+    }
 
     // Close sidebar on click outside on mobile
     document.addEventListener('click', (e) => {
@@ -268,65 +267,69 @@ class TodoistApp {
       this.inlineAddSlotForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
-    this.quickAddSlotBtn.addEventListener('click', openAddSlotForm);
-    this.showAddSlotFormBtn.addEventListener('click', openAddSlotForm);
+    if (this.quickAddSlotBtn) this.quickAddSlotBtn.addEventListener('click', openAddSlotForm);
+    if (this.showAddSlotFormBtn) this.showAddSlotFormBtn.addEventListener('click', openAddSlotForm);
 
-    this.cancelAddSlotBtn.addEventListener('click', () => {
-      this.inlineAddSlotForm.classList.add('hidden');
-      this.showAddSlotFormBtn.style.display = 'flex';
-      this.newSlotNameInput.value = '';
-    });
+    if (this.cancelAddSlotBtn) {
+      this.cancelAddSlotBtn.addEventListener('click', () => {
+        this.inlineAddSlotForm.classList.add('hidden');
+        this.showAddSlotFormBtn.style.display = 'flex';
+        this.newSlotNameInput.value = '';
+      });
+    }
 
-    this.inlineAddSlotForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = this.newSlotNameInput.value.trim();
-      const dateTag = this.newSlotDateInput.value.trim() || '11 Aug';
-      if (!name) return;
+    if (this.inlineAddSlotForm) {
+      this.inlineAddSlotForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = this.newSlotNameInput.value.trim();
+        const dateTag = this.newSlotDateInput.value.trim() || '11 Aug';
+        if (!name) return;
 
-      const newSlot = {
-        id: 'slot-' + Date.now(),
-        name,
-        dateTag,
-        collapsed: false,
-        students: []
-      };
+        const newSlot = {
+          id: 'slot-' + Date.now(),
+          name,
+          dateTag,
+          collapsed: false,
+          students: []
+        };
 
-      this.slots.push(newSlot);
-      this.saveSlots();
-      this.render();
+        this.slots.push(newSlot);
+        this.saveSlots();
+        this.render();
 
-      this.newSlotNameInput.value = '';
-      this.inlineAddSlotForm.classList.add('hidden');
-      this.showAddSlotFormBtn.style.display = 'flex';
-      this.showToast(`Time slot "${name}" added!`);
-    });
+        this.newSlotNameInput.value = '';
+        this.inlineAddSlotForm.classList.add('hidden');
+        this.showAddSlotFormBtn.style.display = 'flex';
+        this.showToast(`Time slot "${name}" added!`);
+      });
+    }
 
     // Search filter
-    this.sidebarSearchInput.addEventListener('input', (e) => {
-      this.searchQuery = e.target.value.toLowerCase().trim();
-      this.render();
-    });
+    if (this.sidebarSearchInput) {
+      this.sidebarSearchInput.addEventListener('input', (e) => {
+        this.searchQuery = e.target.value.toLowerCase().trim();
+        this.render();
+      });
+    }
 
     // Toggle Collapse / Expand All
-    this.toggleAllSlotsBtn.addEventListener('click', () => {
-      this.allCollapsed = !this.allCollapsed;
-      this.slots.forEach(slot => {
-        slot.collapsed = this.allCollapsed;
+    if (this.toggleAllSlotsBtn) {
+      this.toggleAllSlotsBtn.addEventListener('click', () => {
+        this.allCollapsed = !this.allCollapsed;
+        this.slots.forEach(slot => {
+          slot.collapsed = this.allCollapsed;
+        });
+        if (this.toggleAllSlotsText) {
+          this.toggleAllSlotsText.textContent = this.allCollapsed ? 'Expand all' : 'Collapse all';
+        }
+        this.saveSlots();
+        this.render();
       });
-      this.toggleAllSlotsText.textContent = this.allCollapsed ? 'Expand all' : 'Collapse all';
-      this.saveSlots();
-      this.render();
-    });
-  }
-
-  updateCurrencyUI() {
-    const symbolElem = document.getElementById('currentCurrencySymbol');
-    const textElem = document.getElementById('currencyBtnText');
-    if (symbolElem) symbolElem.textContent = this.currentCurrency.symbol;
-    if (textElem) textElem.textContent = `Currency: ${this.currentCurrency.name}`;
+    }
   }
 
   showToast(message) {
+    if (!this.toastContainer) return;
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.innerHTML = `
@@ -379,22 +382,31 @@ class TodoistApp {
   }
 
   updateDashboardUI(stats) {
-    // Header Stats: Potential shows remaining amount to be collected (reduces when items are checked)
-    document.getElementById('headerTotalPotential').textContent = this.formatCurrency(stats.potentialRemaining);
-    document.getElementById('headerTotalEarned').textContent = this.formatCurrency(stats.totalEarned);
+    // Header Stats: Potential shows remaining uncollected fees (reduces as items are checked)
+    const headerPotential = document.getElementById('headerTotalPotential');
+    const headerEarned = document.getElementById('headerTotalEarned');
+    if (headerPotential) headerPotential.textContent = this.formatCurrency(stats.potentialRemaining);
+    if (headerEarned) headerEarned.textContent = this.formatCurrency(stats.totalEarned);
 
     // Sidebar Stats
-    document.getElementById('sidebarTotalEarned').textContent = this.formatCurrency(stats.totalEarned);
-    document.getElementById('sidebarTotalPotential').textContent = this.formatCurrency(stats.potentialRemaining);
-    document.getElementById('sidebarPendingAmount').textContent = this.formatCurrency(stats.potentialRemaining);
-    document.getElementById('earningsPercentage').textContent = `${stats.percentage}%`;
-    document.getElementById('sidebarProgressFill').style.width = `${stats.percentage}%`;
+    const sidebarEarned = document.getElementById('sidebarTotalEarned');
+    const sidebarPotential = document.getElementById('sidebarTotalPotential');
+    const sidebarPending = document.getElementById('sidebarPendingAmount');
+    const percentBadge = document.getElementById('earningsPercentage');
+    const progressFill = document.getElementById('sidebarProgressFill');
+
+    if (sidebarEarned) sidebarEarned.textContent = this.formatCurrency(stats.totalEarned);
+    if (sidebarPotential) sidebarPotential.textContent = this.formatCurrency(stats.potentialRemaining);
+    if (sidebarPending) sidebarPending.textContent = this.formatCurrency(stats.potentialRemaining);
+    if (percentBadge) percentBadge.textContent = `${stats.percentage}%`;
+    if (progressFill) progressFill.style.width = `${stats.percentage}%`;
   }
 
   render() {
     const stats = this.calculateStats();
     this.updateDashboardUI(stats);
 
+    if (!this.slotsContainer) return;
     this.slotsContainer.innerHTML = '';
 
     // Filter slots based on search
