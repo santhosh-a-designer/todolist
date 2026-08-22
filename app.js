@@ -14,7 +14,7 @@ const DEFAULT_FEE_SLOTS = [
     collapsed: false,
     students: [
       { id: 's-1-1', name: 'Abinaya', fee: 9600, completed: false },
-      { id: 's-1-2', name: 'Nikhel Kesani', fee: 2200, completed: true }
+      { id: 's-1-2', name: 'Nikhel Kesani', fee: 4900, completed: true }
     ]
   },
   {
@@ -272,27 +272,26 @@ class TodoistMultiApp {
 
   loadProjects() {
     try {
-      const storedVersion = localStorage.getItem('todoist_multi_version');
-      if (storedVersion !== DATA_VERSION) {
-        // Upgrade / Migrate previous single list data if exists
-        const previousSlots = localStorage.getItem('todoist_time_slots');
-        let initialProjects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
-        if (previousSlots) {
-          try {
-            const parsedSlots = JSON.parse(previousSlots);
-            if (Array.isArray(parsedSlots) && parsedSlots.length > 0) {
-              initialProjects[0].slots = parsedSlots;
-            }
-          } catch (e) {}
-        }
-        localStorage.setItem('todoist_multi_version', DATA_VERSION);
-        localStorage.setItem('todoist_projects_data', JSON.stringify(initialProjects));
-        return initialProjects;
-      }
-
       const saved = localStorage.getItem('todoist_projects_data');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Update Nikhel Kesani to 4900 if it was previously 2200
+          parsed.forEach(p => {
+            if (p.slots) {
+              p.slots.forEach(slot => {
+                if (slot.students) {
+                  slot.students.forEach(s => {
+                    if (s.name && s.name.toLowerCase().includes('nikhel') && s.fee === 2200) {
+                      s.fee = 4900;
+                    }
+                  });
+                }
+              });
+            }
+          });
+          return parsed;
+        }
       }
     } catch (e) {
       console.error('Failed to load projects from localStorage', e);
