@@ -193,11 +193,6 @@ class TodoistApp {
     this.sidebarSearchInput = document.getElementById('sidebarSearchInput');
     this.toggleAllSlotsBtn = document.getElementById('toggleAllSlotsBtn');
     this.toggleAllSlotsText = document.getElementById('toggleAllSlotsText');
-    this.currencyToggleBtn = document.getElementById('currencyToggleBtn');
-    this.exportDataBtn = document.getElementById('exportDataBtn');
-    this.importDataBtn = document.getElementById('importDataBtn');
-    this.importFileInput = document.getElementById('importFileInput');
-    this.resetDataBtn = document.getElementById('resetDataBtn');
     this.toastContainer = document.getElementById('toastContainer');
 
     this.init();
@@ -322,64 +317,6 @@ class TodoistApp {
       this.saveSlots();
       this.render();
     });
-
-    // Currency Switcher
-    this.currencyToggleBtn.addEventListener('click', () => {
-      this.currencyIndex = (this.currencyIndex + 1) % CURRENCIES.length;
-      localStorage.setItem('todoist_currency_idx', this.currencyIndex);
-      this.updateCurrencyUI();
-      this.render();
-      this.showToast(`Currency switched to ${this.currentCurrency.name}`);
-    });
-
-    // Export Data
-    this.exportDataBtn.addEventListener('click', () => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.slots, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `todoist_fees_backup_${new Date().toISOString().slice(0, 10)}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      this.showToast("Data exported successfully!");
-    });
-
-    // Import Data
-    this.importDataBtn.addEventListener('click', () => {
-      this.importFileInput.click();
-    });
-
-    this.importFileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parsed = JSON.parse(event.target.result);
-          if (Array.isArray(parsed)) {
-            this.slots = parsed;
-            this.saveSlots();
-            this.render();
-            this.showToast("Data imported successfully!");
-          } else {
-            this.showToast("Invalid JSON format");
-          }
-        } catch (err) {
-          this.showToast("Error parsing JSON file: " + err.message);
-        }
-      };
-      reader.readAsText(file);
-      this.importFileInput.value = '';
-    });
-
-    // Reset Sample Data
-    this.resetDataBtn.addEventListener('click', () => {
-      this.slots = JSON.parse(JSON.stringify(DEFAULT_SAMPLE_DATA));
-      this.saveSlots();
-      this.render();
-      this.showToast("Reset to full dataset!");
-    });
   }
 
   updateCurrencyUI() {
@@ -408,30 +345,32 @@ class TodoistApp {
   }
 
   calculateStats() {
-    let totalPotential = 0;
+    let totalGross = 0;
     let totalEarned = 0;
+    let potentialRemaining = 0;
     let totalStudents = 0;
     let completedStudents = 0;
 
     this.slots.forEach(slot => {
       slot.students.forEach(student => {
         const fee = Number(student.fee) || 0;
-        totalPotential += fee;
+        totalGross += fee;
         totalStudents += 1;
         if (student.completed) {
           totalEarned += fee;
           completedStudents += 1;
+        } else {
+          potentialRemaining += fee;
         }
       });
     });
 
-    const pendingAmount = totalPotential - totalEarned;
-    const percentage = totalPotential > 0 ? Math.round((totalEarned / totalPotential) * 100) : 0;
+    const percentage = totalGross > 0 ? Math.round((totalEarned / totalGross) * 100) : 0;
 
     return {
-      totalPotential,
+      totalGross,
       totalEarned,
-      pendingAmount,
+      potentialRemaining,
       percentage,
       totalStudents,
       completedStudents,
@@ -440,18 +379,16 @@ class TodoistApp {
   }
 
   updateDashboardUI(stats) {
-    // Header Stats
-    document.getElementById('headerTotalPotential').textContent = this.formatCurrency(stats.totalPotential);
+    // Header Stats: Potential shows remaining amount to be collected (reduces when items are checked)
+    document.getElementById('headerTotalPotential').textContent = this.formatCurrency(stats.potentialRemaining);
     document.getElementById('headerTotalEarned').textContent = this.formatCurrency(stats.totalEarned);
 
     // Sidebar Stats
     document.getElementById('sidebarTotalEarned').textContent = this.formatCurrency(stats.totalEarned);
-    document.getElementById('sidebarTotalPotential').textContent = this.formatCurrency(stats.totalPotential);
-    document.getElementById('sidebarPendingAmount').textContent = this.formatCurrency(stats.pendingAmount);
+    document.getElementById('sidebarTotalPotential').textContent = this.formatCurrency(stats.potentialRemaining);
+    document.getElementById('sidebarPendingAmount').textContent = this.formatCurrency(stats.potentialRemaining);
     document.getElementById('earningsPercentage').textContent = `${stats.percentage}%`;
     document.getElementById('sidebarProgressFill').style.width = `${stats.percentage}%`;
-
-
   }
 
   render() {
