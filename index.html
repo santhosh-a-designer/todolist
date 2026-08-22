@@ -22,7 +22,6 @@
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
-
       </div>
 
       <!-- Add Task Quick Action Button -->
@@ -47,8 +46,7 @@
           </svg>
           <input type="text" id="sidebarSearchInput" placeholder="Search students or slots..." class="nav-search-input">
         </div>
-
-
+      </nav>
 
       <!-- Sidebar Earnings Dashboard Card -->
       <div class="sidebar-earnings-card">
@@ -77,8 +75,11 @@
             <span class="stat-value" id="sidebarTotalPotential">₹0</span>
           </div>
         </div>
+      </div>
+    </aside>
 
-
+    <!-- Main Content Area -->
+    <main class="main-content">
       <!-- Top Bar Header -->
       <header class="top-header">
         <div class="top-header-left">
@@ -97,7 +98,7 @@
 
         <div class="top-header-right">
           <!-- Live Header Stat Chips -->
-          <div class="header-stat-chip potential-chip" title="Total Potential Fees">
+          <div class="header-stat-chip potential-chip" title="Remaining uncollected fees">
             <span class="chip-label">Potential:</span>
             <strong class="chip-val" id="headerTotalPotential">₹0</strong>
           </div>
@@ -148,9 +149,6 @@
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
-
-  <!-- Hidden File Input for Data Import -->
-  <input type="file" id="importFileInput" accept=".json" style="display: none;">
 
   <!-- Application Logic -->
   <script src="app.js"></script>
