@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Todoist Design System & App Stylesheet (Clean Time Slots & Fee Tracker)
+   Todoist Design System & App Stylesheet (Multi-List & Dashboard System)
    ========================================================================== */
 
 :root {
@@ -27,9 +27,14 @@
   --tag-red-text: #db4c3f;
   --tag-green-bg: #edf7ed;
   --tag-green-text: #2e7d32;
+  --tag-blue-bg: #eff6ff;
+  --tag-blue-text: #2563eb;
+  --tag-purple-bg: #f5f3ff;
+  --tag-purple-text: #7c3aed;
 
   /* Status */
   --color-success: #058527;
+  --color-orange: #d97706;
 
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -143,6 +148,10 @@ button, input, select, textarea {
   color: var(--text-muted);
 }
 
+.sidebar-toggle-btn {
+  display: none;
+}
+
 /* Sidebar Quick Add Button */
 .sidebar-add-btn-wrapper {
   padding: 0 4px 14px 4px;
@@ -173,31 +182,67 @@ button, input, select, textarea {
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
+  overflow-y: auto;
 }
 
-.search-item {
+.nav-item {
   display: flex;
   align-items: center;
-  background-color: transparent;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: var(--radius-md);
-  margin-bottom: 8px;
-  border: 1px solid transparent;
-  gap: 10px;
-  transition: all var(--transition-fast);
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 400;
+  gap: 12px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
 }
 
-.search-item:hover, .search-item:focus-within {
-  background-color: #ffffff;
-  border-color: var(--border-darker);
-  box-shadow: var(--shadow-sm);
+.nav-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.nav-item.active {
+  background-color: var(--primary-red-soft);
+  color: var(--primary-red);
+  font-weight: 600;
 }
 
 .nav-icon {
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+
+.nav-icon.red-icon { color: var(--primary-red); }
+.nav-icon.blue-icon { color: #2563eb; }
+
+.nav-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.search-item {
+  background-color: transparent;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+}
+
+.search-item:hover, .search-item:focus-within {
+  background-color: #ffffff;
+  border-color: var(--border-darker);
 }
 
 .nav-search-input {
@@ -213,13 +258,121 @@ button, input, select, textarea {
   color: var(--text-muted);
 }
 
+/* My Projects Header in Sidebar */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 8px 6px 8px;
+  margin-top: 4px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.project-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 14px;
+  gap: 10px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  position: relative;
+}
+
+.project-nav-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.project-nav-item.active {
+  background-color: var(--primary-red-soft);
+  color: var(--primary-red);
+  font-weight: 600;
+}
+
+.project-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.project-nav-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Inline Add Project Form in Sidebar */
+.inline-add-project-form {
+  background: #ffffff;
+  border: 1px solid var(--border-darker);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin: 6px 4px 10px 4px;
+  box-shadow: var(--shadow-sm);
+}
+
+.project-form-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 10px 0;
+  align-items: center;
+}
+
+.todoist-select {
+  flex: 1;
+  border: 1px solid var(--border-darker);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text-main);
+  background-color: #fff;
+  outline: none;
+}
+
+.color-picker-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-darker);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-picker-wrapper input[type="color"] {
+  border: none;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  background: none;
+}
+
 /* Sidebar Earnings Card */
 .sidebar-earnings-card {
   background: #ffffff;
   border: 1px solid var(--border-darker);
   border-radius: var(--radius-lg);
   padding: 16px 14px;
-  margin: 16px 4px 10px 4px;
+  margin: 16px 4px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -392,7 +545,120 @@ button, input, select, textarea {
 }
 
 /* ==========================================================================
-   Slots Container & Slot Sections
+   Dashboard Overview Grid View
+   ========================================================================== */
+.dashboard-view {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.dashboard-welcome {
+  margin-bottom: 24px;
+}
+
+.dashboard-welcome h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.dashboard-welcome p {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+
+
+.card-open-btn {
+  background-color: var(--primary-red-light);
+  color: var(--primary-red);
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card-open-btn:hover {
+  background-color: var(--primary-red);
+  color: #fff;
+}
+
+.create-project-card {
+  border: 1.5px dashed var(--border-darker);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  color: var(--text-muted);
+  gap: 8px;
+  font-weight: 600;
+}
+
+.create-project-card:hover {
+  border-color: var(--primary-red);
+  color: var(--primary-red);
+  background-color: var(--primary-red-soft);
+}
+
+/* ==========================================================================
+   Quick Tasks Container & Row Items (Standard Todo List)
+   ========================================================================== */
+.quick-tasks-container {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.quick-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick-task-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.quick-task-row:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.quick-task-row.completed {
+  opacity: 0.6;
+}
+
+.quick-task-row.completed .quick-task-text {
+  text-decoration: line-through;
+  color: var(--text-faded);
+}
+
+.quick-task-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.quick-task-text {
+  font-size: 14.5px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.add-quick-task-section {
+  margin-top: 16px;
+}
+
+/* ==========================================================================
+   Slots Container & Slot Sections (For Fee Trackers)
    ========================================================================== */
 .slots-container {
   display: flex;
@@ -595,13 +861,15 @@ button, input, select, textarea {
   color: #888888;
 }
 
-.student-row.completed .todoist-checkbox {
+.student-row.completed .todoist-checkbox,
+.quick-task-row.completed .todoist-checkbox {
   background-color: #808080;
   border-color: #808080;
   color: #ffffff;
 }
 
-.student-row.completed .todoist-checkbox:hover {
+.student-row.completed .todoist-checkbox:hover,
+.quick-task-row.completed .todoist-checkbox:hover {
   background-color: #666666;
   border-color: #666666;
 }
@@ -639,7 +907,7 @@ button, input, select, textarea {
   opacity: 0.65;
 }
 
-.student-row-actions {
+.student-row-actions, .quick-task-actions {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -647,7 +915,8 @@ button, input, select, textarea {
   transition: opacity var(--transition-fast);
 }
 
-.student-row:hover .student-row-actions {
+.student-row:hover .student-row-actions,
+.quick-task-row:hover .quick-task-actions {
   opacity: 1;
 }
 
@@ -909,6 +1178,10 @@ button, input, select, textarea {
 
   .sidebar.open {
     transform: translateX(0);
+  }
+
+  .sidebar-toggle-btn {
+    display: flex;
   }
 
   .mobile-sidebar-open {
