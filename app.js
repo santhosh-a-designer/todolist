@@ -451,9 +451,7 @@ class TodoistApp {
     document.getElementById('earningsPercentage').textContent = `${stats.percentage}%`;
     document.getElementById('sidebarProgressFill').style.width = `${stats.percentage}%`;
 
-    // Counters
-    document.getElementById('inboxCount').textContent = stats.totalStudents;
-    document.getElementById('todayPendingCount').textContent = stats.pendingStudents;
+
   }
 
   render() {
