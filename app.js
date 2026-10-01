@@ -1,9 +1,11 @@
 /**
  * Todoist Style Multi-List Management & Projects Dashboard
- * Supports both Student Fee Batches Trackers, Quick Tasks Lists, and Weekly/Monthly Analytics
+ * Supports both Student Fee Batches Trackers, Quick Tasks Lists, and Accurate Weekly/Monthly Analytics
  */
 
-// Default Sample Datasets
+// Default Sample Datasets (August 11, 2026 baseline)
+const AUG_11_ISO = new Date(2026, 7, 11, 10, 0, 0).toISOString();
+
 const DEFAULT_FEE_SLOTS = [
   {
     id: 'slot-1',
@@ -12,7 +14,7 @@ const DEFAULT_FEE_SLOTS = [
     collapsed: false,
     students: [
       { id: 's-1-1', name: 'Abinaya', fee: 9600, completed: false },
-      { id: 's-1-2', name: 'Nikhel Kesani', fee: 4900, completed: true, completedAt: new Date().toISOString() }
+      { id: 's-1-2', name: 'Nikhel Kesani', fee: 4900, completed: true, completedAt: AUG_11_ISO }
     ]
   },
   {
@@ -71,7 +73,7 @@ const DEFAULT_FEE_SLOTS = [
       { id: 's-5-14', name: 'Prakash', fee: 8100, completed: false },
       { id: 's-5-15', name: 'Swathi', fee: 8100, completed: false },
       { id: 's-5-16', name: 'Dhanush', fee: 8100, completed: false },
-      { id: 's-5-17', name: 'Krithi', fee: 8100, completed: true, completedAt: new Date().toISOString() }
+      { id: 's-5-17', name: 'Krithi', fee: 8100, completed: true, completedAt: AUG_11_ISO }
     ]
   },
   {
@@ -145,7 +147,7 @@ const DEFAULT_FEE_SLOTS = [
 
 const DEFAULT_QUICK_TASKS = [
   { id: 't-1', text: 'Call student parents regarding batch timings', completed: false },
-  { id: 't-2', text: 'Review syllabus for 11-12PM batch', completed: true, completedAt: new Date().toISOString() },
+  { id: 't-2', text: 'Review syllabus for 11-12PM batch', completed: true, completedAt: AUG_11_ISO },
   { id: 't-3', text: 'Send fee receipt to Krithi', completed: false }
 ];
 
@@ -181,6 +183,26 @@ function parseNameAndFee(inputStr, fallbackFee = 0) {
     };
   }
   return { name: trimmed, fee: fallbackFee };
+}
+
+/**
+ * Parses dateTag like "11 Aug" or "12 Aug" into a valid historical ISO string
+ */
+function parseDateTagToISO(dateTag, fallbackYear = 2026) {
+  if (!dateTag) return new Date(fallbackYear, 7, 11, 10, 0, 0).toISOString();
+  const months = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+  const parts = dateTag.trim().split(/[\s\.\-]+/);
+  if (parts.length >= 2) {
+    const day = parseInt(parts[0], 10);
+    const monthStr = parts[1].toLowerCase().substring(0, 3);
+    if (!isNaN(day) && months[monthStr] !== undefined) {
+      return new Date(fallbackYear, months[monthStr], day, 10, 0, 0).toISOString();
+    }
+  }
+  return new Date(fallbackYear, 7, 11, 10, 0, 0).toISOString();
 }
 
 class TodoistMultiApp {
@@ -292,17 +314,18 @@ class TodoistMultiApp {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Normalize and guarantee timestamps for completed items
           parsed.forEach(p => {
             if (p.slots) {
               p.slots.forEach(slot => {
+                const slotHistoricalISO = parseDateTagToISO(slot.dateTag);
                 if (slot.students) {
                   slot.students.forEach(s => {
                     if (s.name && s.name.toLowerCase().includes('nikhel') && s.fee === 2200) {
                       s.fee = 4900;
                     }
-                    if (s.completed && !s.completedAt) {
-                      s.completedAt = new Date().toISOString();
+                    // If an item was completed without an explicit user timestamp, associate with its slot dateTag
+                    if (s.completed && (!s.completedAt || !s.userSetTimestamp)) {
+                      s.completedAt = slotHistoricalISO;
                     }
                   });
                 }
@@ -310,8 +333,8 @@ class TodoistMultiApp {
             }
             if (p.tasks) {
               p.tasks.forEach(t => {
-                if (t.completed && !t.completedAt) {
-                  t.completedAt = new Date().toISOString();
+                if (t.completed && (!t.completedAt || !t.userSetTimestamp)) {
+                  t.completedAt = AUG_11_ISO;
                 }
               });
             }
@@ -823,13 +846,15 @@ class TodoistMultiApp {
             grandTotalGross += fee;
             if (student.completed) {
               grandTotalEarned += fee;
+              const dateObj = student.completedAt ? new Date(student.completedAt) : new Date(parseDateTagToISO(slot.dateTag));
               allCompletedPayments.push({
                 id: student.id,
                 name: student.name,
                 fee: fee,
                 slotName: slot.name,
                 projectName: p.name,
-                completedAt: student.completedAt ? new Date(student.completedAt) : new Date(),
+                completedAt: dateObj,
+                ref: student,
                 isTask: false
               });
             } else {
@@ -842,13 +867,15 @@ class TodoistMultiApp {
       if (p.tasks) {
         (p.tasks || []).forEach(task => {
           if (task.completed) {
+            const dateObj = task.completedAt ? new Date(task.completedAt) : new Date(AUG_11_ISO);
             allCompletedPayments.push({
               id: task.id,
               name: task.text,
               fee: 0,
               slotName: 'Quick Tasks',
               projectName: p.name,
-              completedAt: task.completedAt ? new Date(task.completedAt) : new Date(),
+              completedAt: dateObj,
+              ref: task,
               isTask: true
             });
           }
@@ -858,13 +885,21 @@ class TodoistMultiApp {
 
     // Date filtering logic
     const now = new Date();
+    
+    // Start of Week (Monday 00:00)
     const startOfWeek = new Date(now);
     const currentDay = now.getDay();
     const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
     startOfWeek.setDate(now.getDate() + distanceToMonday);
     startOfWeek.setHours(0, 0, 0, 0);
 
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Start of Month (1st of current month)
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
     let filteredItems = [];
     let periodLabel = 'This Week';
@@ -873,11 +908,11 @@ class TodoistMultiApp {
     if (this.analyticsPeriod === 'weekly') {
       periodLabel = 'This Week';
       chartTitleText = 'Daily Collections This Week';
-      filteredItems = allCompletedPayments.filter(item => item.completedAt >= startOfWeek);
+      filteredItems = allCompletedPayments.filter(item => item.completedAt >= startOfWeek && item.completedAt <= endOfWeek);
     } else if (this.analyticsPeriod === 'monthly') {
       periodLabel = 'This Month';
       chartTitleText = 'Weekly Collections This Month';
-      filteredItems = allCompletedPayments.filter(item => item.completedAt >= startOfMonth);
+      filteredItems = allCompletedPayments.filter(item => item.completedAt >= startOfMonth && item.completedAt <= endOfMonth);
     } else {
       periodLabel = 'All Time';
       chartTitleText = 'All-Time Collections Breakdown';
@@ -894,7 +929,7 @@ class TodoistMultiApp {
     const overallRate = grandTotalGross > 0 ? Math.round((grandTotalEarned / grandTotalGross) * 100) : 0;
 
     // Update Hero Cards
-    if (this.summaryCard1Label) this.summaryCard1Label.textContent = `Earned ${periodLabel}`;
+    if (this.summaryCard1Label) this.summaryCard1Label.textContent = `Earned (${periodLabel})`;
     if (this.summaryEarnedValue) this.summaryEarnedValue.textContent = this.formatCurrency(periodEarned);
     if (this.summaryEarnedSub) this.summaryEarnedSub.textContent = `${periodCompletedCount} completed items`;
 
@@ -927,8 +962,8 @@ class TodoistMultiApp {
       barsData = dayNames.map((name, index) => {
         const dayDate = new Date(startOfWeek);
         dayDate.setDate(startOfWeek.getDate() + index);
-        const dayStart = new Date(dayDate.setHours(0, 0, 0, 0));
-        const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999));
+        const dayStart = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), 0, 0, 0, 0);
+        const dayEnd = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), 23, 59, 59, 999);
 
         let sum = 0;
         items.forEach(it => {
@@ -940,11 +975,11 @@ class TodoistMultiApp {
         return { label: name, amount: sum };
       });
     } else if (period === 'monthly') {
-      // 4-5 Weeks
+      // 4-5 Weeks of the month
       const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
       barsData = weekLabels.map((name, index) => {
-        const wStart = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 1 + index * 7);
-        const wEnd = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 7 + index * 7, 23, 59, 59);
+        const wStart = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 1 + index * 7, 0, 0, 0);
+        const wEnd = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 7 + index * 7, 23, 59, 59, 999);
 
         let sum = 0;
         items.forEach(it => {
@@ -962,8 +997,8 @@ class TodoistMultiApp {
       barsData = [];
       for (let i = 5; i >= 0; i--) {
         const mDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const mStart = new Date(mDate.getFullYear(), mDate.getMonth(), 1);
-        const mEnd = new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0, 23, 59, 59);
+        const mStart = new Date(mDate.getFullYear(), mDate.getMonth(), 1, 0, 0, 0);
+        const mEnd = new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
         let sum = 0;
         items.forEach(it => {
@@ -986,7 +1021,7 @@ class TodoistMultiApp {
       col.innerHTML = `
         <span class="chart-bar-val">${bar.amount > 0 ? this.formatCurrency(bar.amount) : ''}</span>
         <div class="chart-bar-wrapper">
-          <div class="chart-bar" style="height: ${Math.max(percent, 5)}%;"></div>
+          <div class="chart-bar" style="height: ${bar.amount > 0 ? Math.max(percent, 8) : 4}%;"></div>
         </div>
         <span class="chart-bar-label">${bar.label}</span>
       `;
@@ -1004,8 +1039,8 @@ class TodoistMultiApp {
 
     if (items.length === 0) {
       this.ledgerList.innerHTML = `
-        <div class="empty-state" style="padding: 24px 0;">
-          <p>No completed payments or tasks recorded in this period yet.</p>
+        <div class="empty-state" style="padding: 28px 0;">
+          <p>No completed payments or tasks recorded for this timeframe.</p>
         </div>
       `;
       return;
@@ -1021,8 +1056,7 @@ class TodoistMultiApp {
       const timeFormatted = item.completedAt.toLocaleDateString('en-IN', {
         month: 'short',
         day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
       });
 
       row.innerHTML = `
@@ -1037,12 +1071,31 @@ class TodoistMultiApp {
             <span class="ledger-item-meta">
               <span>${escapeHTML(item.slotName)}</span>
               <span>•</span>
-              <span>${timeFormatted}</span>
+              <button class="date-edit-btn" title="Click to adjust completion date" style="background: none; border: none; font-size: inherit; color: inherit; cursor: pointer; text-decoration: underline; padding: 0;">${timeFormatted} ✎</button>
             </span>
           </div>
         </div>
         <div class="ledger-item-amount">${item.fee > 0 ? this.formatCurrency(item.fee) : 'Done'}</div>
       `;
+
+      // Allow user to adjust the completion date inline
+      const dateBtn = row.querySelector('.date-edit-btn');
+      if (dateBtn && item.ref) {
+        dateBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isoCurrent = item.completedAt.toISOString().split('T')[0];
+          const userDate = prompt(`Change completion date for "${item.name}" (YYYY-MM-DD):`, isoCurrent);
+          if (userDate && !isNaN(Date.parse(userDate))) {
+            const newDateObj = new Date(userDate + 'T12:00:00');
+            item.ref.completedAt = newDateObj.toISOString();
+            item.ref.userSetTimestamp = true;
+            this.saveProjects();
+            this.render();
+            this.showToast(`Updated date for ${item.name}`);
+          }
+        });
+      }
+
       this.ledgerList.appendChild(row);
     });
   }
@@ -1160,8 +1213,10 @@ class TodoistMultiApp {
         task.completed = !task.completed;
         if (task.completed) {
           task.completedAt = new Date().toISOString();
+          task.userSetTimestamp = true;
         } else {
           delete task.completedAt;
+          delete task.userSetTimestamp;
         }
         this.saveProjects();
         this.render();
@@ -1326,12 +1381,15 @@ class TodoistMultiApp {
     header.querySelector('.slot-circle-icon').addEventListener('click', (e) => {
       e.stopPropagation();
       const targetState = !isSlotFullyCompleted;
+      const nowISO = new Date().toISOString();
       (slot.students || []).forEach(s => {
         s.completed = targetState;
         if (targetState) {
-          s.completedAt = s.completedAt || new Date().toISOString();
+          s.completedAt = nowISO;
+          s.userSetTimestamp = true;
         } else {
           delete s.completedAt;
+          delete s.userSetTimestamp;
         }
       });
       this.saveProjects();
@@ -1594,8 +1652,10 @@ class TodoistMultiApp {
       student.completed = !student.completed;
       if (student.completed) {
         student.completedAt = new Date().toISOString();
+        student.userSetTimestamp = true;
       } else {
         delete student.completedAt;
+        delete student.userSetTimestamp;
       }
       this.saveProjects();
       this.render();
