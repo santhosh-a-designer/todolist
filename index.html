@@ -65,6 +65,16 @@
           <span class="nav-count" id="totalProjectsCount">2</span>
         </a>
 
+        <!-- Analytics & Reports -->
+        <a href="#analytics" class="nav-item" id="navAnalytics">
+          <svg class="nav-icon purple-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span class="nav-label">Analytics & Reports</span>
+        </a>
+
         <!-- My Projects Section -->
         <div class="sidebar-section-header">
           <span class="section-title">My Projects</span>
@@ -181,12 +191,71 @@
         </div>
       </section>
 
-      <!-- View 2: Fee Tracker Slots Container (for fee projects) -->
+      <!-- View 2: Analytics & Reports View -->
+      <section class="analytics-view hidden" id="analyticsView">
+        <div class="analytics-header">
+          <div class="analytics-title-row">
+            <div>
+              <h2 class="analytics-main-title">Earnings & Completion Analytics</h2>
+              <p class="analytics-subtitle">Track your collected fees and completed tasks over time.</p>
+            </div>
+            <!-- Period Filter Tabs -->
+            <div class="period-tabs" id="analyticsPeriodTabs">
+              <button class="period-tab active" data-period="weekly">This Week</button>
+              <button class="period-tab" data-period="monthly">This Month</button>
+              <button class="period-tab" data-period="all">All Time</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Summary Hero Cards -->
+        <div class="analytics-summary-grid">
+          <div class="analytics-card highlight-card">
+            <div class="analytics-card-label" id="summaryCard1Label">Earned This Week</div>
+            <div class="analytics-card-value text-success" id="summaryEarnedValue">₹0</div>
+            <div class="analytics-card-sub" id="summaryEarnedSub">0 payments collected</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-card-label" id="summaryCard2Label">Completed Items</div>
+            <div class="analytics-card-value" id="summaryCompletedCount">0</div>
+            <div class="analytics-card-sub" id="summaryCompletionRate">0% collection rate</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-card-label">Remaining Uncollected</div>
+            <div class="analytics-card-value text-orange" id="summaryRemainingValue">₹0</div>
+            <div class="analytics-card-sub" id="summaryPendingCount">0 pending students</div>
+          </div>
+        </div>
+
+        <!-- Visual Chart & Breakdown Section -->
+        <div class="analytics-chart-card">
+          <div class="chart-card-header">
+            <h3 id="chartTitle">Daily Collections Breakdown</h3>
+            <span class="chart-total-badge" id="chartTotalBadge">Total: ₹0</span>
+          </div>
+          <div class="bar-chart-container" id="barChartContainer">
+            <!-- Dynamic Bars rendered here -->
+          </div>
+        </div>
+
+        <!-- Recent Completed Payments Ledger / History -->
+        <div class="analytics-ledger-card">
+          <div class="ledger-card-header">
+            <h3>Completed Payments & Tasks History</h3>
+            <span class="ledger-count-badge" id="ledgerCountBadge">0 recorded</span>
+          </div>
+          <div class="ledger-list" id="ledgerList">
+            <!-- Dynamic items rendered here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- View 3: Fee Tracker Slots Container (for fee projects) -->
       <section class="slots-container" id="slotsContainer">
         <!-- Rendered dynamically via app.js -->
       </section>
 
-      <!-- View 3: Quick Tasks Container (for standard task projects) -->
+      <!-- View 4: Quick Tasks Container (for standard task projects) -->
       <section class="quick-tasks-container hidden" id="quickTasksContainer">
         <div class="quick-tasks-list" id="quickTasksList">
           <!-- Rendered dynamically -->

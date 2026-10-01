@@ -1,9 +1,7 @@
 /**
  * Todoist Style Multi-List Management & Projects Dashboard
- * Supports both Student Fee Batches Trackers and Quick Tasks Lists
+ * Supports both Student Fee Batches Trackers, Quick Tasks Lists, and Weekly/Monthly Analytics
  */
-
-const DATA_VERSION = 'v5_multi_project_dashboard';
 
 // Default Sample Datasets
 const DEFAULT_FEE_SLOTS = [
@@ -14,7 +12,7 @@ const DEFAULT_FEE_SLOTS = [
     collapsed: false,
     students: [
       { id: 's-1-1', name: 'Abinaya', fee: 9600, completed: false },
-      { id: 's-1-2', name: 'Nikhel Kesani', fee: 4900, completed: true }
+      { id: 's-1-2', name: 'Nikhel Kesani', fee: 4900, completed: true, completedAt: new Date().toISOString() }
     ]
   },
   {
@@ -73,7 +71,7 @@ const DEFAULT_FEE_SLOTS = [
       { id: 's-5-14', name: 'Prakash', fee: 8100, completed: false },
       { id: 's-5-15', name: 'Swathi', fee: 8100, completed: false },
       { id: 's-5-16', name: 'Dhanush', fee: 8100, completed: false },
-      { id: 's-5-17', name: 'Krithi', fee: 8100, completed: true }
+      { id: 's-5-17', name: 'Krithi', fee: 8100, completed: true, completedAt: new Date().toISOString() }
     ]
   },
   {
@@ -147,7 +145,7 @@ const DEFAULT_FEE_SLOTS = [
 
 const DEFAULT_QUICK_TASKS = [
   { id: 't-1', text: 'Call student parents regarding batch timings', completed: false },
-  { id: 't-2', text: 'Review syllabus for 11-12PM batch', completed: true },
+  { id: 't-2', text: 'Review syllabus for 11-12PM batch', completed: true, completedAt: new Date().toISOString() },
   { id: 't-3', text: 'Send fee receipt to Krithi', completed: false }
 ];
 
@@ -169,7 +167,7 @@ const DEFAULT_PROJECTS = [
 ];
 
 /**
- * Smart string parser: Extracts name and numeric fee if typed like "Aravind - 4000" or "Aravind — 4000"
+ * Smart string parser: Extracts name and numeric fee if typed like "Aravind - 4000"
  */
 function parseNameAndFee(inputStr, fallbackFee = 0) {
   if (!inputStr) return { name: '', fee: fallbackFee };
@@ -189,7 +187,8 @@ class TodoistMultiApp {
   constructor() {
     this.projects = this.loadProjects();
     this.activeProjectId = localStorage.getItem('todoist_active_project') || this.projects[0].id;
-    this.currentView = 'project'; // 'project' or 'dashboard'
+    this.currentView = 'project'; // 'project' | 'dashboard' | 'analytics'
+    this.analyticsPeriod = 'weekly'; // 'weekly' | 'monthly' | 'all'
     this.searchQuery = '';
     this.allCollapsed = false;
     this.editingStudentId = null;
@@ -204,6 +203,7 @@ class TodoistMultiApp {
     this.sidebarQuickAddLabel = document.getElementById('sidebarQuickAddLabel');
     this.sidebarSearchInput = document.getElementById('sidebarSearchInput');
     this.navDashboard = document.getElementById('navDashboard');
+    this.navAnalytics = document.getElementById('navAnalytics');
     this.totalProjectsCount = document.getElementById('totalProjectsCount');
     this.sidebarProjectsList = document.getElementById('sidebarProjectsList');
     this.openAddProjectFormBtn = document.getElementById('openAddProjectFormBtn');
@@ -238,10 +238,26 @@ class TodoistMultiApp {
     // Views
     this.dashboardView = document.getElementById('dashboardView');
     this.dashboardGrid = document.getElementById('dashboardGrid');
+    this.analyticsView = document.getElementById('analyticsView');
     this.slotsContainer = document.getElementById('slotsContainer');
     this.quickTasksContainer = document.getElementById('quickTasksContainer');
     this.quickTasksList = document.getElementById('quickTasksList');
     this.addSlotSection = document.getElementById('addSlotSection');
+
+    // Analytics Elements
+    this.summaryCard1Label = document.getElementById('summaryCard1Label');
+    this.summaryEarnedValue = document.getElementById('summaryEarnedValue');
+    this.summaryEarnedSub = document.getElementById('summaryEarnedSub');
+    this.summaryCard2Label = document.getElementById('summaryCard2Label');
+    this.summaryCompletedCount = document.getElementById('summaryCompletedCount');
+    this.summaryCompletionRate = document.getElementById('summaryCompletionRate');
+    this.summaryRemainingValue = document.getElementById('summaryRemainingValue');
+    this.summaryPendingCount = document.getElementById('summaryPendingCount');
+    this.chartTitle = document.getElementById('chartTitle');
+    this.chartTotalBadge = document.getElementById('chartTotalBadge');
+    this.barChartContainer = document.getElementById('barChartContainer');
+    this.ledgerList = document.getElementById('ledgerList');
+    this.ledgerCountBadge = document.getElementById('ledgerCountBadge');
 
     // Add Slot Form elements
     this.showAddSlotFormBtn = document.getElementById('showAddSlotFormBtn');
@@ -276,7 +292,7 @@ class TodoistMultiApp {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Update Nikhel Kesani to 4900 if it was previously 2200
+          // Normalize and guarantee timestamps for completed items
           parsed.forEach(p => {
             if (p.slots) {
               p.slots.forEach(slot => {
@@ -285,7 +301,17 @@ class TodoistMultiApp {
                     if (s.name && s.name.toLowerCase().includes('nikhel') && s.fee === 2200) {
                       s.fee = 4900;
                     }
+                    if (s.completed && !s.completedAt) {
+                      s.completedAt = new Date().toISOString();
+                    }
                   });
+                }
+              });
+            }
+            if (p.tasks) {
+              p.tasks.forEach(t => {
+                if (t.completed && !t.completedAt) {
+                  t.completedAt = new Date().toISOString();
                 }
               });
             }
@@ -344,10 +370,30 @@ class TodoistMultiApp {
       });
     }
 
+    // Sidebar Analytics link
+    if (this.navAnalytics) {
+      this.navAnalytics.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.currentView = 'analytics';
+        this.render();
+      });
+    }
+
+    // Analytics Period Tabs
+    const periodTabs = document.querySelectorAll('.period-tab');
+    periodTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        periodTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this.analyticsPeriod = tab.getAttribute('data-period') || 'weekly';
+        this.renderAnalyticsView();
+      });
+    });
+
     // Sidebar Quick Add button
     if (this.sidebarQuickAddBtn) {
       this.sidebarQuickAddBtn.addEventListener('click', () => {
-        if (this.currentView === 'dashboard') {
+        if (this.currentView === 'dashboard' || this.currentView === 'analytics') {
           this.openAddProjectForm();
         } else if (this.activeProject.type === 'fees') {
           this.openAddSlotForm();
@@ -590,6 +636,8 @@ class TodoistMultiApp {
 
     if (this.currentView === 'dashboard') {
       this.renderDashboardView();
+    } else if (this.currentView === 'analytics') {
+      this.renderAnalyticsView();
     } else {
       this.renderProjectView();
     }
@@ -602,6 +650,10 @@ class TodoistMultiApp {
 
     if (this.navDashboard) {
       this.navDashboard.classList.toggle('active', this.currentView === 'dashboard');
+    }
+
+    if (this.navAnalytics) {
+      this.navAnalytics.classList.toggle('active', this.currentView === 'analytics');
     }
 
     if (!this.sidebarProjectsList) return;
@@ -629,7 +681,7 @@ class TodoistMultiApp {
 
     // Update Sidebar Quick Add label
     if (this.sidebarQuickAddLabel) {
-      if (this.currentView === 'dashboard') {
+      if (this.currentView === 'dashboard' || this.currentView === 'analytics') {
         this.sidebarQuickAddLabel.textContent = 'Add project';
       } else if (this.activeProject.type === 'fees') {
         this.sidebarQuickAddLabel.textContent = 'Add time slot';
@@ -639,13 +691,368 @@ class TodoistMultiApp {
     }
   }
 
+  renderDashboardView() {
+    this.dashboardView.classList.remove('hidden');
+    this.analyticsView.classList.add('hidden');
+    this.slotsContainer.classList.add('hidden');
+    this.quickTasksContainer.classList.add('hidden');
+    this.addSlotSection.classList.add('hidden');
 
+    this.mainViewTitle.textContent = 'All Projects Dashboard';
+    this.topHeaderRightActions.classList.add('hidden');
+
+    this.sidebarEarningsCard.style.display = 'none';
+    this.dashboardGrid.innerHTML = '';
+
+    this.projects.forEach(project => {
+      const stats = this.calculateProjectStats(project);
+      const card = document.createElement('div');
+      card.className = 'project-card';
+      card.style.borderTop = `3.5px solid ${project.color || '#db4c3f'}`;
+      card.innerHTML = `
+        <div>
+          <div class="project-card-top">
+            <div class="card-title-row">
+              <span class="project-dot" style="background-color: ${project.color || '#db4c3f'};"></span>
+              <span class="project-card-name">${escapeHTML(project.name)}</span>
+            </div>
+            <span class="type-badge ${project.type}">${project.type === 'fees' ? 'Fee Tracker' : 'Quick Tasks'}</span>
+          </div>
+
+          <div class="project-metrics-grid">
+            ${project.type === 'fees' ? `
+              <div class="metric-box">
+                <span class="metric-label">Remaining</span>
+                <span class="metric-val">${this.formatCurrency(stats.potentialRemaining)}</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">Collected</span>
+                <span class="metric-val success">${this.formatCurrency(stats.totalEarned)}</span>
+              </div>
+            ` : `
+              <div class="metric-box">
+                <span class="metric-label">Pending</span>
+                <span class="metric-val">${stats.pendingCount} tasks</span>
+              </div>
+              <div class="metric-box">
+                <span class="metric-label">Completed</span>
+                <span class="metric-val success">${stats.completedCount} tasks</span>
+              </div>
+            `}
+          </div>
+
+          <div class="progress-bar-container" style="margin-bottom: 0;">
+            <div class="progress-bar-fill" style="width: ${stats.percentage}%;"></div>
+          </div>
+        </div>
+
+        <div class="project-card-actions">
+          <button class="card-open-btn">Open List &rarr;</button>
+          ${this.projects.length > 1 ? `
+            <button class="icon-btn danger delete-project-btn" title="Delete project">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          ` : ''}
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        this.activeProjectId = project.id;
+        this.currentView = 'project';
+        this.saveProjects();
+        this.render();
+      });
+
+      const deleteBtn = card.querySelector('.delete-project-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm(`Delete project "${project.name}"?`)) {
+            this.projects = this.projects.filter(p => p.id !== project.id);
+            this.activeProjectId = this.projects[0].id;
+            this.saveProjects();
+            this.render();
+            this.showToast(`Deleted "${project.name}"`);
+          }
+        });
+      }
+
+      this.dashboardGrid.appendChild(card);
+    });
+
+    // Create New Project Card
+    const createCard = document.createElement('div');
+    createCard.className = 'project-card create-project-card';
+    createCard.innerHTML = `
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      <span>Create New List</span>
+    `;
+    createCard.addEventListener('click', () => this.openAddProjectForm());
+    this.dashboardGrid.appendChild(createCard);
+  }
+
+  renderAnalyticsView() {
+    this.dashboardView.classList.add('hidden');
+    this.analyticsView.classList.remove('hidden');
+    this.slotsContainer.classList.add('hidden');
+    this.quickTasksContainer.classList.add('hidden');
+    this.addSlotSection.classList.add('hidden');
+
+    this.mainViewTitle.textContent = 'Analytics & Reports';
+    this.topHeaderRightActions.classList.add('hidden');
+    this.sidebarEarningsCard.style.display = 'none';
+
+    // Collect all completed items across projects
+    const allCompletedPayments = [];
+    let grandTotalGross = 0;
+    let grandTotalEarned = 0;
+    let grandTotalPending = 0;
+    let totalPendingStudentsCount = 0;
+
+    this.projects.forEach(p => {
+      if (p.slots) {
+        p.slots.forEach(slot => {
+          (slot.students || []).forEach(student => {
+            const fee = Number(student.fee) || 0;
+            grandTotalGross += fee;
+            if (student.completed) {
+              grandTotalEarned += fee;
+              allCompletedPayments.push({
+                id: student.id,
+                name: student.name,
+                fee: fee,
+                slotName: slot.name,
+                projectName: p.name,
+                completedAt: student.completedAt ? new Date(student.completedAt) : new Date(),
+                isTask: false
+              });
+            } else {
+              grandTotalPending += fee;
+              totalPendingStudentsCount += 1;
+            }
+          });
+        });
+      }
+      if (p.tasks) {
+        (p.tasks || []).forEach(task => {
+          if (task.completed) {
+            allCompletedPayments.push({
+              id: task.id,
+              name: task.text,
+              fee: 0,
+              slotName: 'Quick Tasks',
+              projectName: p.name,
+              completedAt: task.completedAt ? new Date(task.completedAt) : new Date(),
+              isTask: true
+            });
+          }
+        });
+      }
+    });
+
+    // Date filtering logic
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    const currentDay = now.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    startOfWeek.setDate(now.getDate() + distanceToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+
+    let filteredItems = [];
+    let periodLabel = 'This Week';
+    let chartTitleText = 'Daily Collections Breakdown';
+
+    if (this.analyticsPeriod === 'weekly') {
+      periodLabel = 'This Week';
+      chartTitleText = 'Daily Collections This Week';
+      filteredItems = allCompletedPayments.filter(item => item.completedAt >= startOfWeek);
+    } else if (this.analyticsPeriod === 'monthly') {
+      periodLabel = 'This Month';
+      chartTitleText = 'Weekly Collections This Month';
+      filteredItems = allCompletedPayments.filter(item => item.completedAt >= startOfMonth);
+    } else {
+      periodLabel = 'All Time';
+      chartTitleText = 'All-Time Collections Breakdown';
+      filteredItems = [...allCompletedPayments];
+    }
+
+    // Calculate metrics for current period
+    let periodEarned = 0;
+    let periodCompletedCount = filteredItems.length;
+    filteredItems.forEach(item => {
+      periodEarned += item.fee;
+    });
+
+    const overallRate = grandTotalGross > 0 ? Math.round((grandTotalEarned / grandTotalGross) * 100) : 0;
+
+    // Update Hero Cards
+    if (this.summaryCard1Label) this.summaryCard1Label.textContent = `Earned ${periodLabel}`;
+    if (this.summaryEarnedValue) this.summaryEarnedValue.textContent = this.formatCurrency(periodEarned);
+    if (this.summaryEarnedSub) this.summaryEarnedSub.textContent = `${periodCompletedCount} completed items`;
+
+    if (this.summaryCard2Label) this.summaryCard2Label.textContent = `Completed (${periodLabel})`;
+    if (this.summaryCompletedCount) this.summaryCompletedCount.textContent = periodCompletedCount;
+    if (this.summaryCompletionRate) this.summaryCompletionRate.textContent = `${overallRate}% all-time collection rate`;
+
+    if (this.summaryRemainingValue) this.summaryRemainingValue.textContent = this.formatCurrency(grandTotalPending);
+    if (this.summaryPendingCount) this.summaryPendingCount.textContent = `${totalPendingStudentsCount} pending student fees`;
+
+    if (this.chartTitle) this.chartTitle.textContent = chartTitleText;
+    if (this.chartTotalBadge) this.chartTotalBadge.textContent = `Total: ${this.formatCurrency(periodEarned)}`;
+
+    // Build Chart Bars
+    this.renderChartBars(this.analyticsPeriod, filteredItems, startOfWeek, startOfMonth);
+
+    // Build Completed History Ledger
+    this.renderLedgerList(filteredItems);
+  }
+
+  renderChartBars(period, items, startOfWeek, startOfMonth) {
+    if (!this.barChartContainer) return;
+    this.barChartContainer.innerHTML = '';
+
+    let barsData = [];
+
+    if (period === 'weekly') {
+      // 7 Days: Mon - Sun
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      barsData = dayNames.map((name, index) => {
+        const dayDate = new Date(startOfWeek);
+        dayDate.setDate(startOfWeek.getDate() + index);
+        const dayStart = new Date(dayDate.setHours(0, 0, 0, 0));
+        const dayEnd = new Date(dayDate.setHours(23, 59, 59, 999));
+
+        let sum = 0;
+        items.forEach(it => {
+          if (it.completedAt >= dayStart && it.completedAt <= dayEnd) {
+            sum += it.fee;
+          }
+        });
+
+        return { label: name, amount: sum };
+      });
+    } else if (period === 'monthly') {
+      // 4-5 Weeks
+      const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'];
+      barsData = weekLabels.map((name, index) => {
+        const wStart = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 1 + index * 7);
+        const wEnd = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth(), 7 + index * 7, 23, 59, 59);
+
+        let sum = 0;
+        items.forEach(it => {
+          if (it.completedAt >= wStart && it.completedAt <= wEnd) {
+            sum += it.fee;
+          }
+        });
+
+        return { label: name, amount: sum };
+      });
+    } else {
+      // All Time: Recent Months
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const now = new Date();
+      barsData = [];
+      for (let i = 5; i >= 0; i--) {
+        const mDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mStart = new Date(mDate.getFullYear(), mDate.getMonth(), 1);
+        const mEnd = new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0, 23, 59, 59);
+
+        let sum = 0;
+        items.forEach(it => {
+          if (it.completedAt >= mStart && it.completedAt <= mEnd) {
+            sum += it.fee;
+          }
+        });
+
+        barsData.push({ label: monthNames[mStart.getMonth()], amount: sum });
+      }
+    }
+
+    // Find max value to normalize bar heights
+    const maxAmount = Math.max(...barsData.map(b => b.amount), 1);
+
+    barsData.forEach(bar => {
+      const percent = Math.round((bar.amount / maxAmount) * 100);
+      const col = document.createElement('div');
+      col.className = 'chart-bar-col';
+      col.innerHTML = `
+        <span class="chart-bar-val">${bar.amount > 0 ? this.formatCurrency(bar.amount) : ''}</span>
+        <div class="chart-bar-wrapper">
+          <div class="chart-bar" style="height: ${Math.max(percent, 5)}%;"></div>
+        </div>
+        <span class="chart-bar-label">${bar.label}</span>
+      `;
+      this.barChartContainer.appendChild(col);
+    });
+  }
+
+  renderLedgerList(items) {
+    if (!this.ledgerList) return;
+    this.ledgerList.innerHTML = '';
+
+    if (this.ledgerCountBadge) {
+      this.ledgerCountBadge.textContent = `${items.length} records`;
+    }
+
+    if (items.length === 0) {
+      this.ledgerList.innerHTML = `
+        <div class="empty-state" style="padding: 24px 0;">
+          <p>No completed payments or tasks recorded in this period yet.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Sort descending by timestamp
+    const sorted = [...items].sort((a, b) => b.completedAt - a.completedAt);
+
+    sorted.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'ledger-item';
+      
+      const timeFormatted = item.completedAt.toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      row.innerHTML = `
+        <div class="ledger-item-left">
+          <div class="ledger-check-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div class="ledger-item-info">
+            <span class="ledger-item-title">${escapeHTML(item.name)}</span>
+            <span class="ledger-item-meta">
+              <span>${escapeHTML(item.slotName)}</span>
+              <span>•</span>
+              <span>${timeFormatted}</span>
+            </span>
+          </div>
+        </div>
+        <div class="ledger-item-amount">${item.fee > 0 ? this.formatCurrency(item.fee) : 'Done'}</div>
+      `;
+      this.ledgerList.appendChild(row);
+    });
+  }
 
   renderProjectView() {
     const project = this.activeProject;
     const stats = this.calculateProjectStats(project);
 
     this.dashboardView.classList.add('hidden');
+    this.analyticsView.classList.add('hidden');
     this.topHeaderRightActions.classList.remove('hidden');
     this.mainViewTitle.textContent = project.name;
 
@@ -751,6 +1158,11 @@ class TodoistMultiApp {
       row.querySelector('.todoist-checkbox').addEventListener('click', (e) => {
         e.stopPropagation();
         task.completed = !task.completed;
+        if (task.completed) {
+          task.completedAt = new Date().toISOString();
+        } else {
+          delete task.completedAt;
+        }
         this.saveProjects();
         this.render();
       });
@@ -914,7 +1326,14 @@ class TodoistMultiApp {
     header.querySelector('.slot-circle-icon').addEventListener('click', (e) => {
       e.stopPropagation();
       const targetState = !isSlotFullyCompleted;
-      (slot.students || []).forEach(s => s.completed = targetState);
+      (slot.students || []).forEach(s => {
+        s.completed = targetState;
+        if (targetState) {
+          s.completedAt = s.completedAt || new Date().toISOString();
+        } else {
+          delete s.completedAt;
+        }
+      });
       this.saveProjects();
       this.render();
       this.showToast(targetState ? `Marked all in ${slot.name} as paid!` : `Reset status for ${slot.name}`);
@@ -1173,6 +1592,11 @@ class TodoistMultiApp {
     row.querySelector('.todoist-checkbox').addEventListener('click', (e) => {
       e.stopPropagation();
       student.completed = !student.completed;
+      if (student.completed) {
+        student.completedAt = new Date().toISOString();
+      } else {
+        delete student.completedAt;
+      }
       this.saveProjects();
       this.render();
       if (student.completed) {
