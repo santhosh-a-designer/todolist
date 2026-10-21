@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Todoist - Multi-List & Student Fee Tracker</title>
+  <title>Todoist - Multi-List, Jobs & Student Fee Tracker</title>
   <!-- Google Fonts: Plus Jakarta Sans & Outfit (Geometric Modern Typography) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,7 +50,7 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="sidebarSearchInput" placeholder="Search tasks, students, slots..." class="nav-search-input">
+          <input type="text" id="sidebarSearchInput" placeholder="Search tasks, students, jobs..." class="nav-search-input">
         </div>
 
         <!-- Dashboard / Overview -->
@@ -73,6 +73,16 @@
             <line x1="6" y1="20" x2="6" y2="14"></line>
           </svg>
           <span class="nav-label">Analytics & Reports</span>
+        </a>
+
+        <!-- Job Tracker -->
+        <a href="#jobs" class="nav-item" id="navJobs">
+          <svg class="nav-icon amber-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span class="nav-label">Job Tracker</span>
+          <span class="nav-count" id="totalJobsCount">0</span>
         </a>
 
         <!-- My Projects Section -->
@@ -250,12 +260,161 @@
         </div>
       </section>
 
-      <!-- View 3: Fee Tracker Slots Container (for fee projects) -->
+      <!-- View 3: Job Application Tracker View -->
+      <section class="jobs-view hidden" id="jobsView">
+        <div class="jobs-header">
+          <div class="jobs-title-row">
+            <div>
+              <h2 class="jobs-main-title">Job Application Tracker</h2>
+              <p class="jobs-subtitle">Auto-fill details from screenshots, links, or job descriptions and track your interview pipeline.</p>
+            </div>
+            <button class="todoist-btn primary-btn add-job-btn-trigger" id="toggleSmartAddBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>+ Add Application</span>
+            </button>
+          </div>
+
+          <!-- Quick Pipeline Stats Bar -->
+          <div class="jobs-stats-grid">
+            <div class="job-stat-card">
+              <span class="job-stat-label">Total Applied</span>
+              <span class="job-stat-val" id="jobStatApplied">0</span>
+            </div>
+            <div class="job-stat-card">
+              <span class="job-stat-label">Interviewing</span>
+              <span class="job-stat-val text-blue" id="jobStatInterviewing">0</span>
+            </div>
+            <div class="job-stat-card">
+              <span class="job-stat-label">Offers Received</span>
+              <span class="job-stat-val text-success" id="jobStatOffers">0</span>
+            </div>
+            <div class="job-stat-card">
+              <span class="job-stat-label">Response Rate</span>
+              <span class="job-stat-val text-purple" id="jobStatResponseRate">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart "Drop, Paste or Link" Auto-Add Card -->
+        <div class="smart-add-card hidden" id="smartAddCard">
+          <div class="smart-add-header">
+            <div class="smart-add-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span>Smart Auto-Fill: Paste Screenshot, Link or Text</span>
+            </div>
+            <button class="icon-btn close-smart-add" id="closeSmartAddBtn" title="Close">✕</button>
+          </div>
+
+          <div class="smart-add-body">
+            <!-- Drop & Paste Zone -->
+            <div class="smart-drop-zone" id="smartDropZone" tabindex="0">
+              <input type="file" id="jobImageFileInput" accept="image/*" class="hidden">
+              <div class="drop-zone-content">
+                <div class="drop-zone-icon">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+                <div class="drop-zone-text">
+                  <strong>Click to upload, drag image, or press <kbd>Cmd+V</kbd> to paste screenshot</strong>
+                  <span>Supports screenshots from LinkedIn, Naukri, Indeed, or career sites</span>
+                </div>
+              </div>
+              <div class="ocr-status-overlay hidden" id="ocrStatusOverlay">
+                <div class="spinner"></div>
+                <span id="ocrStatusText">Scanning screenshot...</span>
+              </div>
+            </div>
+
+            <!-- Text / URL Quick Paste Box -->
+            <div class="smart-text-input-wrap">
+              <label for="smartTextInput">Or paste Job Description text or link:</label>
+              <textarea id="smartTextInput" placeholder="e.g. Swiggy is hiring a Senior Product Designer in Bangalore (Hybrid). CTC: ₹22-28 LPA. Apply at https://careers.swiggy.com/job/123" rows="3" class="todoist-textarea"></textarea>
+              <button type="button" class="action-pill-btn auto-parse-btn" id="parseTextBtn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Extract details</span>
+              </button>
+            </div>
+
+            <!-- Extracted / Editable Form -->
+            <form id="jobForm" class="job-editor-form">
+              <div class="job-form-grid">
+                <div class="form-group">
+                  <label for="jobRoleInput">Role / Job Title *</label>
+                  <input type="text" id="jobRoleInput" class="todoist-input" placeholder="e.g. Senior Product Designer" required>
+                </div>
+                <div class="form-group">
+                  <label for="jobCompanyInput">Company Name *</label>
+                  <input type="text" id="jobCompanyInput" class="todoist-input" placeholder="e.g. Swiggy" required>
+                </div>
+                <div class="form-group">
+                  <label for="jobLocationInput">Location & Work Mode</label>
+                  <input type="text" id="jobLocationInput" class="todoist-input" placeholder="e.g. Bangalore (Hybrid) or Remote">
+                </div>
+                <div class="form-group">
+                  <label for="jobSalaryInput">Salary / Package (CTC)</label>
+                  <input type="text" id="jobSalaryInput" class="todoist-input" placeholder="e.g. ₹24 LPA or $120k">
+                </div>
+                <div class="form-group">
+                  <label for="jobLinkInput">Job Posting URL</label>
+                  <input type="url" id="jobLinkInput" class="todoist-input" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                  <label for="jobStatusSelect">Current Status</label>
+                  <select id="jobStatusSelect" class="todoist-select">
+                    <option value="applied">Applied 📤</option>
+                    <option value="interviewing">Interviewing 🎯</option>
+                    <option value="wishlist">Wishlist / To Apply 📌</option>
+                    <option value="offered">Offered 🎉</option>
+                    <option value="rejected">Rejected / Archived ✕</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 10px;">
+                <label for="jobNotesInput">Notes / Interview Rounds</label>
+                <input type="text" id="jobNotesInput" class="todoist-input" placeholder="e.g. Round 1 HR cleared, Portfolio review next Tuesday">
+              </div>
+              <div class="form-actions" style="margin-top: 14px;">
+                <button type="submit" class="todoist-btn primary-btn" id="saveJobBtn">Save Application</button>
+                <button type="button" class="todoist-btn cancel-btn" id="cancelJobBtn">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Pipeline Filter Tabs -->
+        <div class="job-filter-bar">
+          <div class="period-tabs job-status-tabs" id="jobStatusTabs">
+            <button class="period-tab active" data-status="all">All (<span id="countAll">0</span>)</button>
+            <button class="period-tab" data-status="wishlist">Wishlist (<span id="countWishlist">0</span>)</button>
+            <button class="period-tab" data-status="applied">Applied (<span id="countApplied">0</span>)</button>
+            <button class="period-tab" data-status="interviewing">Interviewing (<span id="countInterviewing">0</span>)</button>
+            <button class="period-tab" data-status="offered">Offered (<span id="countOffered">0</span>)</button>
+            <button class="period-tab" data-status="rejected">Archived (<span id="countRejected">0</span>)</button>
+          </div>
+        </div>
+
+        <!-- Job Cards Container -->
+        <div class="job-cards-grid" id="jobCardsGrid">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- View 4: Fee Tracker Slots Container (for fee projects) -->
       <section class="slots-container" id="slotsContainer">
         <!-- Rendered dynamically via app.js -->
       </section>
 
-      <!-- View 4: Quick Tasks Container (for standard task projects) -->
+      <!-- View 5: Quick Tasks Container (for standard task projects) -->
       <section class="quick-tasks-container hidden" id="quickTasksContainer">
         <div class="quick-tasks-list" id="quickTasksList">
           <!-- Rendered dynamically -->
@@ -307,6 +466,8 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- Client-side OCR via Tesseract.js for free instant image recognition -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <!-- Application Logic -->
   <script src="app.js"></script>
 </body>

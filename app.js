@@ -168,6 +168,31 @@ const DEFAULT_PROJECTS = [
   }
 ];
 
+const DEFAULT_JOBS = [
+  {
+    id: 'job-1',
+    role: 'Senior Product Designer',
+    company: 'Swiggy',
+    location: 'Bangalore (Hybrid)',
+    salary: '₹24 - 28 LPA',
+    link: 'https://careers.swiggy.com',
+    status: 'interviewing',
+    notes: 'Round 1 Portfolio review cleared. Design assignment submitted.',
+    appliedAt: new Date(Date.now() - 4 * 86400000).toISOString()
+  },
+  {
+    id: 'job-2',
+    role: 'UI/UX Designer',
+    company: 'CRED',
+    location: 'Bengaluru (Onsite)',
+    salary: '₹22 - 26 LPA',
+    link: 'https://cred.club/careers',
+    status: 'applied',
+    notes: 'Applied via referral by Senior PM.',
+    appliedAt: new Date(Date.now() - 2 * 86400000).toISOString()
+  }
+];
+
 /**
  * Smart string parser: Extracts name and numeric fee if typed like "Aravind - 4000"
  */
@@ -208,9 +233,11 @@ function parseDateTagToISO(dateTag, fallbackYear = 2026) {
 class TodoistMultiApp {
   constructor() {
     this.projects = this.loadProjects();
+    this.jobs = this.loadJobs();
     this.activeProjectId = localStorage.getItem('todoist_active_project') || this.projects[0].id;
-    this.currentView = 'project'; // 'project' | 'dashboard' | 'analytics'
+    this.currentView = 'project'; // 'project' | 'dashboard' | 'analytics' | 'jobs'
     this.analyticsPeriod = 'weekly'; // 'weekly' | 'monthly' | 'all'
+    this.jobFilter = 'all'; // 'all' | 'wishlist' | 'applied' | 'interviewing' | 'offered' | 'rejected'
     this.searchQuery = '';
     this.allCollapsed = false;
     this.editingStudentId = null;
@@ -226,7 +253,9 @@ class TodoistMultiApp {
     this.sidebarSearchInput = document.getElementById('sidebarSearchInput');
     this.navDashboard = document.getElementById('navDashboard');
     this.navAnalytics = document.getElementById('navAnalytics');
+    this.navJobs = document.getElementById('navJobs');
     this.totalProjectsCount = document.getElementById('totalProjectsCount');
+    this.totalJobsCount = document.getElementById('totalJobsCount');
     this.sidebarProjectsList = document.getElementById('sidebarProjectsList');
     this.openAddProjectFormBtn = document.getElementById('openAddProjectFormBtn');
     this.inlineAddProjectForm = document.getElementById('inlineAddProjectForm');
@@ -261,10 +290,39 @@ class TodoistMultiApp {
     this.dashboardView = document.getElementById('dashboardView');
     this.dashboardGrid = document.getElementById('dashboardGrid');
     this.analyticsView = document.getElementById('analyticsView');
+    this.jobsView = document.getElementById('jobsView');
     this.slotsContainer = document.getElementById('slotsContainer');
     this.quickTasksContainer = document.getElementById('quickTasksContainer');
     this.quickTasksList = document.getElementById('quickTasksList');
     this.addSlotSection = document.getElementById('addSlotSection');
+
+    // Job Tracker View Elements
+    this.toggleSmartAddBtn = document.getElementById('toggleSmartAddBtn');
+    this.smartAddCard = document.getElementById('smartAddCard');
+    this.closeSmartAddBtn = document.getElementById('closeSmartAddBtn');
+    this.smartDropZone = document.getElementById('smartDropZone');
+    this.jobImageFileInput = document.getElementById('jobImageFileInput');
+    this.ocrStatusOverlay = document.getElementById('ocrStatusOverlay');
+    this.ocrStatusText = document.getElementById('ocrStatusText');
+    this.smartTextInput = document.getElementById('smartTextInput');
+    this.parseTextBtn = document.getElementById('parseTextBtn');
+    this.jobForm = document.getElementById('jobForm');
+    this.jobRoleInput = document.getElementById('jobRoleInput');
+    this.jobCompanyInput = document.getElementById('jobCompanyInput');
+    this.jobLocationInput = document.getElementById('jobLocationInput');
+    this.jobSalaryInput = document.getElementById('jobSalaryInput');
+    this.jobLinkInput = document.getElementById('jobLinkInput');
+    this.jobStatusSelect = document.getElementById('jobStatusSelect');
+    this.jobNotesInput = document.getElementById('jobNotesInput');
+    this.cancelJobBtn = document.getElementById('cancelJobBtn');
+    this.jobCardsGrid = document.getElementById('jobCardsGrid');
+    this.jobStatusTabs = document.getElementById('jobStatusTabs');
+
+    // Pipeline Stats Elements
+    this.jobStatApplied = document.getElementById('jobStatApplied');
+    this.jobStatInterviewing = document.getElementById('jobStatInterviewing');
+    this.jobStatOffers = document.getElementById('jobStatOffers');
+    this.jobStatResponseRate = document.getElementById('jobStatResponseRate');
 
     // Analytics Elements
     this.summaryCard1Label = document.getElementById('summaryCard1Label');
@@ -306,6 +364,27 @@ class TodoistMultiApp {
   formatCurrency(amount) {
     const num = Number(amount) || 0;
     return `₹${num.toLocaleString('en-IN')}`;
+  }
+
+  loadJobs() {
+    try {
+      const saved = localStorage.getItem('todoist_jobs_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load jobs from localStorage', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_JOBS));
+  }
+
+  saveJobs() {
+    try {
+      localStorage.setItem('todoist_jobs_data', JSON.stringify(this.jobs));
+    } catch (e) {
+      console.error('Failed to save jobs to localStorage', e);
+    }
   }
 
   loadProjects() {
@@ -359,6 +438,7 @@ class TodoistMultiApp {
 
   init() {
     this.bindEvents();
+    this.setupJobEventListeners();
     this.render();
   }
 
@@ -402,6 +482,15 @@ class TodoistMultiApp {
       });
     }
 
+    // Sidebar Jobs link
+    if (this.navJobs) {
+      this.navJobs.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.currentView = 'jobs';
+        this.render();
+      });
+    }
+
     // Analytics Period Tabs
     const periodTabs = document.querySelectorAll('.period-tab');
     periodTabs.forEach(tab => {
@@ -418,6 +507,8 @@ class TodoistMultiApp {
       this.sidebarQuickAddBtn.addEventListener('click', () => {
         if (this.currentView === 'dashboard' || this.currentView === 'analytics') {
           this.openAddProjectForm();
+        } else if (this.currentView === 'jobs') {
+          this.openAddJobForm();
         } else if (this.activeProject.type === 'fees') {
           this.openAddSlotForm();
         } else {
@@ -661,6 +752,8 @@ class TodoistMultiApp {
       this.renderDashboardView();
     } else if (this.currentView === 'analytics') {
       this.renderAnalyticsView();
+    } else if (this.currentView === 'jobs') {
+      this.renderJobsView();
     } else {
       this.renderProjectView();
     }
@@ -677,6 +770,14 @@ class TodoistMultiApp {
 
     if (this.navAnalytics) {
       this.navAnalytics.classList.toggle('active', this.currentView === 'analytics');
+    }
+
+    if (this.navJobs) {
+      this.navJobs.classList.toggle('active', this.currentView === 'jobs');
+    }
+
+    if (this.totalJobsCount) {
+      this.totalJobsCount.textContent = this.jobs.length;
     }
 
     if (!this.sidebarProjectsList) return;
@@ -706,6 +807,8 @@ class TodoistMultiApp {
     if (this.sidebarQuickAddLabel) {
       if (this.currentView === 'dashboard' || this.currentView === 'analytics') {
         this.sidebarQuickAddLabel.textContent = 'Add project';
+      } else if (this.currentView === 'jobs') {
+        this.sidebarQuickAddLabel.textContent = 'Add job';
       } else if (this.activeProject.type === 'fees') {
         this.sidebarQuickAddLabel.textContent = 'Add time slot';
       } else {
@@ -717,6 +820,7 @@ class TodoistMultiApp {
   renderDashboardView() {
     this.dashboardView.classList.remove('hidden');
     this.analyticsView.classList.add('hidden');
+    if (this.jobsView) this.jobsView.classList.add('hidden');
     this.slotsContainer.classList.add('hidden');
     this.quickTasksContainer.classList.add('hidden');
     this.addSlotSection.classList.add('hidden');
@@ -823,6 +927,7 @@ class TodoistMultiApp {
   renderAnalyticsView() {
     this.dashboardView.classList.add('hidden');
     this.analyticsView.classList.remove('hidden');
+    if (this.jobsView) this.jobsView.classList.add('hidden');
     this.slotsContainer.classList.add('hidden');
     this.quickTasksContainer.classList.add('hidden');
     this.addSlotSection.classList.add('hidden');
@@ -1106,6 +1211,7 @@ class TodoistMultiApp {
 
     this.dashboardView.classList.add('hidden');
     this.analyticsView.classList.add('hidden');
+    if (this.jobsView) this.jobsView.classList.add('hidden');
     this.topHeaderRightActions.classList.remove('hidden');
     this.mainViewTitle.textContent = project.name;
 
@@ -1689,6 +1795,450 @@ class TodoistMultiApp {
     });
 
     return row;
+  }
+
+  // ==========================================================================
+  // Job Application Tracker Logic & OCR Auto-Fill
+  // ==========================================================================
+  setupJobEventListeners() {
+    if (this.toggleSmartAddBtn) {
+      this.toggleSmartAddBtn.addEventListener('click', () => {
+        this.openAddJobForm();
+      });
+    }
+
+    if (this.closeSmartAddBtn) {
+      this.closeSmartAddBtn.addEventListener('click', () => {
+        this.closeAddJobForm();
+      });
+    }
+
+    if (this.cancelJobBtn) {
+      this.cancelJobBtn.addEventListener('click', () => {
+        this.closeAddJobForm();
+      });
+    }
+
+    if (this.smartDropZone) {
+      this.smartDropZone.addEventListener('click', () => {
+        if (this.jobImageFileInput) this.jobImageFileInput.click();
+      });
+
+      this.smartDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        this.smartDropZone.classList.add('dragover');
+      });
+
+      this.smartDropZone.addEventListener('dragleave', () => {
+        this.smartDropZone.classList.remove('dragover');
+      });
+
+      this.smartDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.smartDropZone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          const file = e.dataTransfer.files[0];
+          if (file.type.startsWith('image/')) {
+            this.processImageOCR(file);
+          } else {
+            this.showToast('Please drop an image (PNG, JPG or screenshot)');
+          }
+        }
+      });
+    }
+
+    if (this.jobImageFileInput) {
+      this.jobImageFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          this.processImageOCR(e.target.files[0]);
+        }
+      });
+    }
+
+    // Global Cmd+V / Ctrl+V paste support for screenshots
+    document.addEventListener('paste', (e) => {
+      if (this.currentView !== 'jobs') return;
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.items) return;
+
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          if (blob) {
+            e.preventDefault();
+            this.openAddJobForm();
+            this.processImageOCR(blob);
+            return;
+          }
+        }
+      }
+    });
+
+    if (this.parseTextBtn) {
+      this.parseTextBtn.addEventListener('click', () => {
+        const text = this.smartTextInput ? this.smartTextInput.value.trim() : '';
+        if (!text) {
+          this.showToast('Please paste job text or link first');
+          return;
+        }
+        this.parseJobText(text);
+        this.showToast('Extracted job details!');
+      });
+    }
+
+    if (this.jobStatusTabs) {
+      const tabs = this.jobStatusTabs.querySelectorAll('.period-tab');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          this.jobFilter = tab.getAttribute('data-status') || 'all';
+          this.renderJobCards();
+        });
+      });
+    }
+
+    if (this.jobForm) {
+      this.jobForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const role = this.jobRoleInput ? this.jobRoleInput.value.trim() : '';
+        const company = this.jobCompanyInput ? this.jobCompanyInput.value.trim() : '';
+        const location = this.jobLocationInput ? this.jobLocationInput.value.trim() : '';
+        const salary = this.jobSalaryInput ? this.jobSalaryInput.value.trim() : '';
+        const link = this.jobLinkInput ? this.jobLinkInput.value.trim() : '';
+        const status = this.jobStatusSelect ? this.jobStatusSelect.value : 'applied';
+        const notes = this.jobNotesInput ? this.jobNotesInput.value.trim() : '';
+
+        if (!role || !company) {
+          this.showToast('Please enter both Role and Company name');
+          return;
+        }
+
+        const newJob = {
+          id: 'job-' + Date.now(),
+          role,
+          company,
+          location,
+          salary,
+          link,
+          status,
+          notes,
+          appliedAt: new Date().toISOString()
+        };
+
+        this.jobs.unshift(newJob);
+        this.saveJobs();
+        this.closeAddJobForm();
+        this.renderJobsView();
+        this.showToast(`Saved application for ${company}! 🎉`);
+      });
+    }
+  }
+
+  openAddJobForm() {
+    if (this.smartAddCard) {
+      this.smartAddCard.classList.remove('hidden');
+      this.smartAddCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (this.jobRoleInput) this.jobRoleInput.focus();
+    }
+  }
+
+  closeAddJobForm() {
+    if (this.smartAddCard) {
+      this.smartAddCard.classList.add('hidden');
+      if (this.jobForm) this.jobForm.reset();
+      if (this.smartTextInput) this.smartTextInput.value = '';
+    }
+  }
+
+  parseJobText(rawText) {
+    if (!rawText) return;
+    const text = rawText.trim();
+
+    // 1. Extract URL
+    const urlMatch = text.match(/https?:\/\/[^\s]+/i);
+    if (urlMatch && this.jobLinkInput) {
+      this.jobLinkInput.value = urlMatch[0];
+    }
+
+    // 2. Extract Salary / CTC (e.g. ₹24-28 LPA, 20 LPA, $120k-$150k, 15-20 Lakhs)
+    const salaryMatch = text.match(/(?:(?:₹|INR|Rs\.?)\s*\d+(?:[.,]\d+)?(?:\s*[-–to]+\s*(?:₹|INR|Rs\.?)?\d+(?:[.,]\d+)?)?\s*(?:LPA|lpa|Lakhs?|lac|k|K)?)|(?:\$\s*\d+k?(?:\s*[-–to]+\s*\$?\d+k?)?)|(?:\d+(?:[.,]\d+)?\s*[-–to]+\s*\d+(?:[.,]\d+)?\s*(?:LPA|lpa|Lakhs?|lac))/i);
+    if (salaryMatch && this.jobSalaryInput) {
+      this.jobSalaryInput.value = salaryMatch[0].trim();
+    }
+
+    // 3. Extract Location & Mode (e.g. Bangalore, Hybrid, Remote, etc.)
+    const modeMatch = text.match(/\b(Remote|Hybrid|On-?site|In-office)\b/i);
+    const cityMatch = text.match(/\b(Bangalore|Bengaluru|Mumbai|Delhi|NCR|Gurgaon|Gurugram|Noida|Hyderabad|Pune|Chennai|Kolkata|Ahmedabad|San Francisco|New York|London|Singapore|Berlin|Toronto)\b/i);
+    let loc = '';
+    if (cityMatch && modeMatch) {
+      loc = `${cityMatch[0]} (${modeMatch[0]})`;
+    } else if (cityMatch) {
+      loc = cityMatch[0];
+    } else if (modeMatch) {
+      loc = modeMatch[0];
+    }
+    if (loc && this.jobLocationInput) {
+      this.jobLocationInput.value = loc;
+    }
+
+    // 4. Extract Role / Job Title
+    const rolePattern = /(?:(?:Senior|Sr\.?|Lead|Principal|Junior|Jr\.?|Staff|Associate|Chief|Head of)?\s*(?:Product|UI\/UX|UX\/UI|Visual|Interaction|Graphic|Brand)?\s*(?:Designer|Developer|Engineer|Architect|Manager|Analyst|Consultant)|(?:Frontend|Backend|Full\s*Stack|Mobile|iOS|Android|DevOps|Data|QA|Software)\s*(?:Engineer|Developer|Lead|Intern))/i;
+    const roleMatch = text.match(rolePattern);
+    if (roleMatch && this.jobRoleInput) {
+      this.jobRoleInput.value = roleMatch[0].trim();
+    }
+
+    // 5. Extract Company
+    const companyPrefixMatch = text.match(/(?:at|@|company:\s*|hiring at\s*)([A-Z][A-Za-z0-9&.\s]{1,30})(?:\s+in|\s+is|\s+for|[,\n.]|$)/i);
+    if (companyPrefixMatch && this.jobCompanyInput) {
+      this.jobCompanyInput.value = companyPrefixMatch[1].trim();
+    } else if (urlMatch && this.jobCompanyInput && !this.jobCompanyInput.value) {
+      try {
+        const parsedUrl = new URL(urlMatch[0]);
+        const hostParts = parsedUrl.hostname.split('.');
+        const mainPart = hostParts.find(p => !['www', 'careers', 'jobs', 'lever', 'greenhouse', 'workday', 'com', 'co', 'in', 'org', 'io', 'net'].includes(p.toLowerCase()));
+        if (mainPart) {
+          this.jobCompanyInput.value = mainPart.charAt(0).toUpperCase() + mainPart.slice(1);
+        }
+      } catch (e) {}
+    }
+  }
+
+  async processImageOCR(imageFileOrBlob) {
+    if (!imageFileOrBlob) return;
+    if (typeof Tesseract === 'undefined') {
+      this.showToast('OCR engine loading, please try again in a moment...');
+      return;
+    }
+
+    if (this.ocrStatusOverlay) {
+      this.ocrStatusOverlay.classList.remove('hidden');
+      if (this.ocrStatusText) this.ocrStatusText.textContent = 'Scanning screenshot with OCR...';
+    }
+
+    try {
+      const worker = await Tesseract.recognize(imageFileOrBlob, 'eng', {
+        logger: m => {
+          if (m && m.status === 'recognizing text' && m.progress && this.ocrStatusText) {
+            const pct = Math.round(m.progress * 100);
+            this.ocrStatusText.textContent = `Scanning screenshot: ${pct}%`;
+          }
+        }
+      });
+
+      const recognizedText = (worker && worker.data && worker.data.text) ? worker.data.text : '';
+      if (this.smartTextInput) this.smartTextInput.value = recognizedText;
+      this.parseJobText(recognizedText);
+      this.showToast('✨ Auto-filled job details from screenshot!');
+    } catch (err) {
+      console.error('OCR Error:', err);
+      this.showToast('Could not extract text. Please paste description or link.');
+    } finally {
+      if (this.ocrStatusOverlay) this.ocrStatusOverlay.classList.add('hidden');
+    }
+  }
+
+  renderJobsView() {
+    this.dashboardView.classList.add('hidden');
+    this.analyticsView.classList.add('hidden');
+    this.slotsContainer.classList.add('hidden');
+    this.quickTasksContainer.classList.add('hidden');
+    this.addSlotSection.classList.add('hidden');
+    this.jobsView.classList.remove('hidden');
+
+    this.mainViewTitle.textContent = 'Job Application Tracker';
+    this.topHeaderRightActions.classList.add('hidden');
+    this.sidebarEarningsCard.style.display = 'none';
+
+    // Calculate Pipeline Metrics
+    const totalApplied = this.jobs.filter(j => j.status !== 'wishlist').length;
+    const interviewing = this.jobs.filter(j => j.status === 'interviewing').length;
+    const offers = this.jobs.filter(j => j.status === 'offered').length;
+    const activePipeline = interviewing + offers;
+    const responseRate = totalApplied > 0 ? Math.round((activePipeline / totalApplied) * 100) : 0;
+
+    if (this.jobStatApplied) this.jobStatApplied.textContent = totalApplied;
+    if (this.jobStatInterviewing) this.jobStatInterviewing.textContent = interviewing;
+    if (this.jobStatOffers) this.jobStatOffers.textContent = offers;
+    if (this.jobStatResponseRate) this.jobStatResponseRate.textContent = `${responseRate}%`;
+
+    // Update Tab Counts
+    const countAll = this.jobs.length;
+    const countWishlist = this.jobs.filter(j => j.status === 'wishlist').length;
+    const countApplied = this.jobs.filter(j => j.status === 'applied').length;
+    const countInterviewing = this.jobs.filter(j => j.status === 'interviewing').length;
+    const countOffered = this.jobs.filter(j => j.status === 'offered').length;
+    const countRejected = this.jobs.filter(j => j.status === 'rejected').length;
+
+    const elAll = document.getElementById('countAll');
+    const elWishlist = document.getElementById('countWishlist');
+    const elApplied = document.getElementById('countApplied');
+    const elInterviewing = document.getElementById('countInterviewing');
+    const elOffered = document.getElementById('countOffered');
+    const elRejected = document.getElementById('countRejected');
+
+    if (elAll) elAll.textContent = countAll;
+    if (elWishlist) elWishlist.textContent = countWishlist;
+    if (elApplied) elApplied.textContent = countApplied;
+    if (elInterviewing) elInterviewing.textContent = countInterviewing;
+    if (elOffered) elOffered.textContent = countOffered;
+    if (elRejected) elRejected.textContent = countRejected;
+
+    this.renderJobCards();
+  }
+
+  renderJobCards() {
+    if (!this.jobCardsGrid) return;
+    this.jobCardsGrid.innerHTML = '';
+
+    let filtered = this.jobs;
+    if (this.jobFilter !== 'all') {
+      filtered = filtered.filter(j => j.status === this.jobFilter);
+    }
+
+    if (this.searchQuery) {
+      filtered = filtered.filter(j => 
+        (j.role && j.role.toLowerCase().includes(this.searchQuery)) ||
+        (j.company && j.company.toLowerCase().includes(this.searchQuery)) ||
+        (j.location && j.location.toLowerCase().includes(this.searchQuery)) ||
+        (j.notes && j.notes.toLowerCase().includes(this.searchQuery))
+      );
+    }
+
+    if (filtered.length === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty-state';
+      emptyDiv.style.gridColumn = '1 / -1';
+      emptyDiv.innerHTML = `
+        <div class="empty-state-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+        </div>
+        <div class="empty-state-title">No job applications in this view</div>
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">Click "+ Add Application" or press <kbd>Cmd+V</kbd> to paste a job screenshot!</p>
+      `;
+      this.jobCardsGrid.appendChild(emptyDiv);
+      return;
+    }
+
+    filtered.forEach(job => {
+      const card = document.createElement('div');
+      card.className = 'job-card';
+
+      const dateObj = job.appliedAt ? new Date(job.appliedAt) : new Date();
+      const dateFormatted = dateObj.toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric'
+      });
+
+      card.innerHTML = `
+        <div>
+          <div class="job-card-header">
+            <div>
+              <div class="job-card-role">${escapeHTML(job.role)}</div>
+              <div class="job-card-company">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                </svg>
+                <span>${escapeHTML(job.company)}</span>
+              </div>
+            </div>
+            <span class="job-status-badge badge-${job.status}">${this.formatJobStatusBadge(job.status)}</span>
+          </div>
+
+          <div class="job-meta-row" style="margin-top: 10px;">
+            ${job.location ? `
+              <div class="job-meta-pill" title="Location">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <span>${escapeHTML(job.location)}</span>
+              </div>
+            ` : ''}
+            ${job.salary ? `
+              <div class="job-meta-pill salary" title="Salary / CTC">
+                <span>💰 ${escapeHTML(job.salary)}</span>
+              </div>
+            ` : ''}
+            ${job.link ? `
+              <div class="job-meta-pill">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+                <a href="${escapeHTML(job.link)}" target="_blank" rel="noopener noreferrer">View Post</a>
+              </div>
+            ` : ''}
+          </div>
+
+          ${job.notes ? `
+            <div class="job-card-notes" style="margin-top: 10px;">
+              <strong>Progress / Notes:</strong> ${escapeHTML(job.notes)}
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="job-card-footer">
+          <span class="job-card-date">Added ${dateFormatted}</span>
+          <div class="job-actions-wrap">
+            <select class="job-status-quick-select" aria-label="Update status">
+              <option value="wishlist" ${job.status === 'wishlist' ? 'selected' : ''}>Wishlist 📌</option>
+              <option value="applied" ${job.status === 'applied' ? 'selected' : ''}>Applied 📤</option>
+              <option value="interviewing" ${job.status === 'interviewing' ? 'selected' : ''}>Interviewing 🎯</option>
+              <option value="offered" ${job.status === 'offered' ? 'selected' : ''}>Offered 🎉</option>
+              <option value="rejected" ${job.status === 'rejected' ? 'selected' : ''}>Archived ✕</option>
+            </select>
+            <button class="delete-job-btn" title="Delete job application">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Status Change Handler
+      const statusSelect = card.querySelector('.job-status-quick-select');
+      statusSelect.addEventListener('change', (e) => {
+        job.status = e.target.value;
+        this.saveJobs();
+        this.renderJobsView();
+        this.showToast(`Updated ${job.company} status to ${this.formatJobStatusBadge(job.status)}!`);
+      });
+
+      // Delete Handler
+      const deleteBtn = card.querySelector('.delete-job-btn');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`Remove application for ${job.role} at ${job.company}?`)) {
+          this.jobs = this.jobs.filter(j => j.id !== job.id);
+          this.saveJobs();
+          this.renderJobsView();
+          this.showToast(`Removed ${job.company}`);
+        }
+      });
+
+      this.jobCardsGrid.appendChild(card);
+    });
+  }
+
+  formatJobStatusBadge(status) {
+    switch (status) {
+      case 'wishlist': return 'Wishlist';
+      case 'applied': return 'Applied';
+      case 'interviewing': return 'Interviewing';
+      case 'offered': return 'Offer Received';
+      case 'rejected': return 'Archived';
+      default: return status;
+    }
   }
 }
 
