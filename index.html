@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=kanban1">
 </head>
 <body>
   <div class="app-container">
@@ -260,13 +260,21 @@
         </div>
       </section>
 
-      <!-- View 3: Job Application Tracker View -->
+      <!-- View 3: Job Application Tracker View (Kanban Board) -->
       <section class="jobs-view hidden" id="jobsView">
-        <div class="jobs-header">
-          <div class="jobs-title-row">
-            <div>
-              <p class="jobs-subtitle">Auto-fill details from screenshots, links, or job descriptions and track your interview pipeline.</p>
-            </div>
+        <!-- Kanban Board Header -->
+        <div class="kanban-header">
+          <div class="kanban-header-left">
+            <p class="jobs-subtitle">Track your interview pipeline. Add from screenshots, links, or job descriptions.</p>
+          </div>
+          <div class="kanban-header-actions">
+            <button class="kanban-view-toggle active" id="kanbanViewBtn" title="Kanban view">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="4" height="18" rx="1"></rect>
+                <rect x="10" y="3" width="4" height="18" rx="1"></rect>
+                <rect x="17" y="3" width="4" height="18" rx="1"></rect>
+              </svg>
+            </button>
             <button class="todoist-btn primary-btn add-job-btn-trigger" id="toggleSmartAddBtn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -275,141 +283,51 @@
               <span>Add Application</span>
             </button>
           </div>
+        </div>
 
-          <!-- Quick Pipeline Stats Bar -->
-          <div class="jobs-stats-grid">
-            <div class="job-stat-card">
+        <!-- Quick Pipeline Stats Bar -->
+        <div class="jobs-stats-grid">
+          <div class="job-stat-card">
+            <div class="job-stat-icon" style="background:#eff6ff;color:#2563eb">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="job-stat-content">
               <span class="job-stat-label">Total Applied</span>
               <span class="job-stat-val" id="jobStatApplied">0</span>
             </div>
-            <div class="job-stat-card">
+          </div>
+          <div class="job-stat-card">
+            <div class="job-stat-icon" style="background:#fef3c7;color:#d97706">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="job-stat-content">
               <span class="job-stat-label">Interviewing</span>
               <span class="job-stat-val text-blue" id="jobStatInterviewing">0</span>
             </div>
-            <div class="job-stat-card">
-              <span class="job-stat-label">Offers Received</span>
+          </div>
+          <div class="job-stat-card">
+            <div class="job-stat-icon" style="background:#dcfce7;color:#16a34a">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div class="job-stat-content">
+              <span class="job-stat-label">Offers</span>
               <span class="job-stat-val text-success" id="jobStatOffers">0</span>
             </div>
-            <div class="job-stat-card">
+          </div>
+          <div class="job-stat-card">
+            <div class="job-stat-icon" style="background:#f5f3ff;color:#7c3aed">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            </div>
+            <div class="job-stat-content">
               <span class="job-stat-label">Response Rate</span>
               <span class="job-stat-val text-purple" id="jobStatResponseRate">0%</span>
             </div>
           </div>
         </div>
 
-        <!-- Smart "Drop, Paste or Link" Auto-Add Card -->
-        <div class="smart-add-card hidden" id="smartAddCard">
-          <div class="smart-add-header">
-            <div class="smart-add-title">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-              </svg>
-              <span>Auto-Fill from Screenshot, Link, or Text</span>
-            </div>
-            <button class="icon-btn close-smart-add" id="closeSmartAddBtn" title="Close" aria-label="Close">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-
-          <div class="smart-add-body">
-            <!-- Drop & Paste Zone -->
-            <div class="smart-drop-zone" id="smartDropZone" tabindex="0">
-              <input type="file" id="jobImageFileInput" accept="image/*" class="hidden">
-              <div class="drop-zone-content">
-                <div class="drop-zone-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                  </svg>
-                </div>
-                <div class="drop-zone-text">
-                  <strong>Click to upload, drag image, or press <kbd>Cmd+V</kbd> to paste screenshot</strong>
-                  <span>Supports screenshots from LinkedIn, Naukri, Indeed, or career portals</span>
-                </div>
-              </div>
-              <div class="ocr-status-overlay hidden" id="ocrStatusOverlay">
-                <div class="spinner"></div>
-                <span id="ocrStatusText">Scanning screenshot...</span>
-              </div>
-            </div>
-
-            <!-- Text / URL Quick Paste Box -->
-            <div class="smart-text-input-wrap">
-              <label for="smartTextInput">Or paste Job Description text or link:</label>
-              <textarea id="smartTextInput" placeholder="e.g. Swiggy is hiring a Senior Product Designer in Bangalore (Hybrid). CTC: 22-28 LPA. Apply at https://careers.swiggy.com/job/123" rows="3" class="todoist-textarea"></textarea>
-              <button type="button" class="action-pill-btn auto-parse-btn" id="parseTextBtn">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Extract details</span>
-              </button>
-            </div>
-
-            <!-- Extracted / Editable Form -->
-            <form id="jobForm" class="job-editor-form">
-              <div class="job-form-grid">
-                <div class="form-group">
-                  <label for="jobRoleInput">Role / Job Title *</label>
-                  <input type="text" id="jobRoleInput" class="todoist-input" placeholder="e.g. Senior Product Designer" required>
-                </div>
-                <div class="form-group">
-                  <label for="jobCompanyInput">Company Name *</label>
-                  <input type="text" id="jobCompanyInput" class="todoist-input" placeholder="e.g. Swiggy" required>
-                </div>
-                <div class="form-group">
-                  <label for="jobLocationInput">Location & Work Mode</label>
-                  <input type="text" id="jobLocationInput" class="todoist-input" placeholder="e.g. Bangalore (Hybrid) or Remote">
-                </div>
-                <div class="form-group">
-                  <label for="jobSalaryInput">Salary / Package (CTC)</label>
-                  <input type="text" id="jobSalaryInput" class="todoist-input" placeholder="e.g. 24 LPA or $120k">
-                </div>
-                <div class="form-group">
-                  <label for="jobLinkInput">Job Posting URL</label>
-                  <input type="url" id="jobLinkInput" class="todoist-input" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                  <label for="jobStatusSelect">Current Status</label>
-                  <select id="jobStatusSelect" class="todoist-select">
-                    <option value="applied">Applied</option>
-                    <option value="interviewing">Interviewing</option>
-                    <option value="wishlist">Wishlist</option>
-                    <option value="offered">Offered</option>
-                    <option value="rejected">Archived</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-group" style="margin-top: 10px;">
-                <label for="jobNotesInput">Notes / Interview Rounds</label>
-                <input type="text" id="jobNotesInput" class="todoist-input" placeholder="e.g. Round 1 HR cleared, Portfolio review next Tuesday">
-              </div>
-              <div class="form-actions" style="margin-top: 14px;">
-                <button type="submit" class="todoist-btn primary-btn" id="saveJobBtn">Save Application</button>
-                <button type="button" class="todoist-btn cancel-btn" id="cancelJobBtn">Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- Pipeline Filter Tabs -->
-        <div class="job-filter-bar">
-          <div class="job-status-tabs" id="jobStatusTabs">
-            <button class="job-filter-tab active" data-status="all">All (<span id="countAll">0</span>)</button>
-            <button class="job-filter-tab" data-status="wishlist">Wishlist (<span id="countWishlist">0</span>)</button>
-            <button class="job-filter-tab" data-status="applied">Applied (<span id="countApplied">0</span>)</button>
-            <button class="job-filter-tab" data-status="interviewing">Interviewing (<span id="countInterviewing">0</span>)</button>
-            <button class="job-filter-tab" data-status="offered">Offered (<span id="countOffered">0</span>)</button>
-            <button class="job-filter-tab" data-status="rejected">Archived (<span id="countRejected">0</span>)</button>
-          </div>
-        </div>
-
-        <!-- Job Cards Container -->
-        <div class="job-cards-grid" id="jobCardsGrid">
-          <!-- Rendered dynamically -->
+        <!-- Kanban Board Columns -->
+        <div class="kanban-board" id="kanbanBoard">
+          <!-- Columns rendered dynamically by app.js -->
         </div>
       </section>
 
@@ -470,9 +388,130 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- ===== JOB DRAWER (Slide-in panel) ===== -->
+  <div class="job-drawer-overlay hidden" id="jobDrawerOverlay"></div>
+  <aside class="job-drawer hidden" id="jobDrawer" aria-label="Add Job Application">
+    <div class="job-drawer-header">
+      <div class="job-drawer-title">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span id="jobDrawerTitleText">New Application</span>
+      </div>
+      <button class="icon-btn job-drawer-close" id="closeJobDrawerBtn" aria-label="Close panel">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="job-drawer-body">
+      <!-- Auto-fill section -->
+      <div class="drawer-autofill-section">
+        <p class="drawer-section-label">Auto-fill from screenshot or paste text</p>
+        <div class="smart-drop-zone" id="smartDropZone" tabindex="0">
+          <input type="file" id="jobImageFileInput" accept="image/*" class="hidden">
+          <div class="drop-zone-content">
+            <div class="drop-zone-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </div>
+            <div class="drop-zone-text">
+              <strong>Click to upload or <kbd>Cmd+V</kbd> to paste</strong>
+              <span>LinkedIn, Naukri, Indeed screenshots work great</span>
+            </div>
+          </div>
+          <div class="ocr-status-overlay hidden" id="ocrStatusOverlay">
+            <div class="spinner"></div>
+            <span id="ocrStatusText">Scanning screenshot...</span>
+          </div>
+        </div>
+        <div class="smart-text-input-wrap">
+          <textarea id="smartTextInput" placeholder="Or paste job description text or a link here..." rows="2" class="todoist-textarea"></textarea>
+          <button type="button" class="auto-parse-btn" id="parseTextBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Extract details</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="drawer-divider">
+        <span>or fill in manually</span>
+      </div>
+
+      <!-- Form -->
+      <form id="jobForm" class="job-editor-form">
+        <div class="job-form-grid">
+          <div class="form-group">
+            <label for="jobRoleInput">Role / Job Title *</label>
+            <input type="text" id="jobRoleInput" class="todoist-input" placeholder="e.g. Senior Product Designer" required>
+          </div>
+          <div class="form-group">
+            <label for="jobCompanyInput">Company Name *</label>
+            <input type="text" id="jobCompanyInput" class="todoist-input" placeholder="e.g. Swiggy" required>
+          </div>
+          <div class="form-group">
+            <label for="jobLocationInput">Location &amp; Work Mode</label>
+            <input type="text" id="jobLocationInput" class="todoist-input" placeholder="e.g. Bangalore (Hybrid)">
+          </div>
+          <div class="form-group">
+            <label for="jobSalaryInput">Salary / Package (CTC)</label>
+            <input type="text" id="jobSalaryInput" class="todoist-input" placeholder="e.g. 24 LPA or $120k">
+          </div>
+          <div class="form-group">
+            <label for="jobLinkInput">Job Posting URL</label>
+            <input type="url" id="jobLinkInput" class="todoist-input" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label for="jobStatusSelect">Pipeline Stage</label>
+            <select id="jobStatusSelect" class="todoist-select">
+              <option value="wishlist">Wishlist</option>
+              <option value="applied" selected>Applied</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offered">Offered</option>
+              <option value="rejected">Archived</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label for="jobNotesInput">Notes / Interview Rounds</label>
+          <input type="text" id="jobNotesInput" class="todoist-input" placeholder="e.g. Round 1 cleared, Portfolio review next Tuesday">
+        </div>
+        <div class="form-actions" style="margin-top:20px;">
+          <button type="submit" class="todoist-btn primary-btn" id="saveJobBtn">Save Application</button>
+          <button type="button" class="todoist-btn cancel-btn" id="cancelJobBtn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </aside>
+
+  <!-- ===== DELETE CONFIRMATION MODAL ===== -->
+  <div class="modal-overlay hidden" id="deleteJobModalOverlay">
+    <div class="confirm-modal" id="deleteJobModal" role="dialog" aria-labelledby="deleteModalTitle" aria-modal="true">
+      <div class="confirm-modal-icon danger">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </div>
+      <h3 class="confirm-modal-title" id="deleteModalTitle">Delete Application?</h3>
+      <p class="confirm-modal-body" id="deleteModalBody">This will permanently remove the job application. This action cannot be undone.</p>
+      <div class="confirm-modal-actions">
+        <button class="todoist-btn cancel-btn" id="cancelDeleteJobBtn">Cancel</button>
+        <button class="todoist-btn danger-btn" id="confirmDeleteJobBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Client-side OCR via Tesseract.js for free instant image recognition -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <!-- Application Logic -->
-  <script src="app.js"></script>
+  <script src="app.js?v=kanban1"></script>
 </body>
 </html>

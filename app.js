@@ -300,8 +300,14 @@ class TodoistMultiApp {
 
     // Job Tracker View Elements
     this.toggleSmartAddBtn = document.getElementById('toggleSmartAddBtn');
-    this.smartAddCard = document.getElementById('smartAddCard');
-    this.closeSmartAddBtn = document.getElementById('closeSmartAddBtn');
+    this.kanbanBoard = document.getElementById('kanbanBoard');
+    // Drawer elements
+    this.jobDrawerOverlay = document.getElementById('jobDrawerOverlay');
+    this.jobDrawer = document.getElementById('jobDrawer');
+    this.closeJobDrawerBtn = document.getElementById('closeJobDrawerBtn');
+    this.jobDrawerTitleText = document.getElementById('jobDrawerTitleText');
+    // Shared form elements (now in drawer)
+    this.smartAddCard = null; // legacy ref - no longer used
     this.smartDropZone = document.getElementById('smartDropZone');
     this.jobImageFileInput = document.getElementById('jobImageFileInput');
     this.ocrStatusOverlay = document.getElementById('ocrStatusOverlay');
@@ -317,14 +323,21 @@ class TodoistMultiApp {
     this.jobStatusSelect = document.getElementById('jobStatusSelect');
     this.jobNotesInput = document.getElementById('jobNotesInput');
     this.cancelJobBtn = document.getElementById('cancelJobBtn');
-    this.jobCardsGrid = document.getElementById('jobCardsGrid');
-    this.jobStatusTabs = document.getElementById('jobStatusTabs');
+    this.jobCardsGrid = null; // legacy - no longer used
+    this.jobStatusTabs = null; // legacy - replaced by kanban columns
+    // Delete Modal elements
+    this.deleteJobModalOverlay = document.getElementById('deleteJobModalOverlay');
+    this.deleteModalBody = document.getElementById('deleteModalBody');
+    this.confirmDeleteJobBtn = document.getElementById('confirmDeleteJobBtn');
+    this.cancelDeleteJobBtn = document.getElementById('cancelDeleteJobBtn');
+    this.pendingDeleteJobId = null; // stores which job is pending deletion
 
     // Pipeline Stats Elements
     this.jobStatApplied = document.getElementById('jobStatApplied');
     this.jobStatInterviewing = document.getElementById('jobStatInterviewing');
     this.jobStatOffers = document.getElementById('jobStatOffers');
     this.jobStatResponseRate = document.getElementById('jobStatResponseRate');
+
 
     // Analytics Elements
     this.summaryCard1Label = document.getElementById('summaryCard1Label');
@@ -1829,8 +1842,14 @@ class TodoistMultiApp {
       });
     }
 
-    if (this.closeSmartAddBtn) {
-      this.closeSmartAddBtn.addEventListener('click', () => {
+    if (this.closeJobDrawerBtn) {
+      this.closeJobDrawerBtn.addEventListener('click', () => {
+        this.closeAddJobForm();
+      });
+    }
+
+    if (this.jobDrawerOverlay) {
+      this.jobDrawerOverlay.addEventListener('click', () => {
         this.closeAddJobForm();
       });
     }
@@ -1840,6 +1859,45 @@ class TodoistMultiApp {
         this.closeAddJobForm();
       });
     }
+
+    // Delete Modal Handlers
+    if (this.cancelDeleteJobBtn) {
+      this.cancelDeleteJobBtn.addEventListener('click', () => {
+        this.closeDeleteJobModal();
+      });
+    }
+
+    if (this.deleteJobModalOverlay) {
+      this.deleteJobModalOverlay.addEventListener('click', (e) => {
+        if (e.target === this.deleteJobModalOverlay) {
+          this.closeDeleteJobModal();
+        }
+      });
+    }
+
+    if (this.confirmDeleteJobBtn) {
+      this.confirmDeleteJobBtn.addEventListener('click', () => {
+        if (!this.pendingDeleteJobId) return;
+        const job = this.jobs.find(j => j.id === this.pendingDeleteJobId);
+        const companyName = job ? (job.company || 'Job') : 'Job';
+        this.jobs = this.jobs.filter(j => j.id !== this.pendingDeleteJobId);
+        this.saveJobs();
+        this.closeDeleteJobModal();
+        this.renderJobsView();
+        this.showToast(`Deleted ${companyName} application`);
+      });
+    }
+
+    // Keyboard Escape Handler
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (this.deleteJobModalOverlay && !this.deleteJobModalOverlay.classList.contains('hidden')) {
+          this.closeDeleteJobModal();
+        } else if (this.jobDrawer && !this.jobDrawer.classList.contains('hidden')) {
+          this.closeAddJobForm();
+        }
+      }
+    });
 
     if (this.smartDropZone) {
       this.smartDropZone.addEventListener('click', () => {
@@ -1909,18 +1967,6 @@ class TodoistMultiApp {
       });
     }
 
-    if (this.jobStatusTabs) {
-      const tabs = this.jobStatusTabs.querySelectorAll('.job-filter-tab');
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          this.jobFilter = tab.getAttribute('data-status') || 'all';
-          this.renderJobCards();
-        });
-      });
-    }
-
     if (this.jobForm) {
       this.jobForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1958,19 +2004,52 @@ class TodoistMultiApp {
     }
   }
 
-  openAddJobForm() {
-    if (this.smartAddCard) {
-      this.smartAddCard.classList.remove('hidden');
-      this.smartAddCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      if (this.jobRoleInput) this.jobRoleInput.focus();
+  openAddJobForm(defaultStatus = 'applied') {
+    if (this.jobStatusSelect) {
+      this.jobStatusSelect.value = defaultStatus;
+    }
+    if (this.jobDrawerOverlay) {
+      this.jobDrawerOverlay.classList.remove('hidden');
+    }
+    if (this.jobDrawer) {
+      this.jobDrawer.classList.remove('hidden');
+      if (this.jobRoleInput) {
+        setTimeout(() => this.jobRoleInput.focus(), 60);
+      }
     }
   }
 
   closeAddJobForm() {
-    if (this.smartAddCard) {
-      this.smartAddCard.classList.add('hidden');
-      if (this.jobForm) this.jobForm.reset();
-      if (this.smartTextInput) this.smartTextInput.value = '';
+    if (this.jobDrawer) {
+      this.jobDrawer.classList.add('hidden');
+    }
+    if (this.jobDrawerOverlay) {
+      this.jobDrawerOverlay.classList.add('hidden');
+    }
+    if (this.jobForm) {
+      this.jobForm.reset();
+    }
+    if (this.smartTextInput) {
+      this.smartTextInput.value = '';
+    }
+  }
+
+  openDeleteJobModal(jobId) {
+    const job = this.jobs.find(j => j.id === jobId);
+    if (!job) return;
+    this.pendingDeleteJobId = jobId;
+    if (this.deleteModalBody) {
+      this.deleteModalBody.textContent = `Are you sure you want to delete your application for "${job.role}" at ${job.company}? This action cannot be undone.`;
+    }
+    if (this.deleteJobModalOverlay) {
+      this.deleteJobModalOverlay.classList.remove('hidden');
+    }
+  }
+
+  closeDeleteJobModal() {
+    this.pendingDeleteJobId = null;
+    if (this.deleteJobModalOverlay) {
+      this.deleteJobModalOverlay.classList.add('hidden');
     }
   }
 
@@ -2086,177 +2165,210 @@ class TodoistMultiApp {
     if (this.jobStatOffers) this.jobStatOffers.textContent = offers;
     if (this.jobStatResponseRate) this.jobStatResponseRate.textContent = `${responseRate}%`;
 
-    // Update Tab Counts
-    const countAll = this.jobs.length;
-    const countWishlist = this.jobs.filter(j => j.status === 'wishlist').length;
-    const countApplied = this.jobs.filter(j => j.status === 'applied').length;
-    const countInterviewing = this.jobs.filter(j => j.status === 'interviewing').length;
-    const countOffered = this.jobs.filter(j => j.status === 'offered').length;
-    const countRejected = this.jobs.filter(j => j.status === 'rejected').length;
-
-    const elAll = document.getElementById('countAll');
-    const elWishlist = document.getElementById('countWishlist');
-    const elApplied = document.getElementById('countApplied');
-    const elInterviewing = document.getElementById('countInterviewing');
-    const elOffered = document.getElementById('countOffered');
-    const elRejected = document.getElementById('countRejected');
-
-    if (elAll) elAll.textContent = countAll;
-    if (elWishlist) elWishlist.textContent = countWishlist;
-    if (elApplied) elApplied.textContent = countApplied;
-    if (elInterviewing) elInterviewing.textContent = countInterviewing;
-    if (elOffered) elOffered.textContent = countOffered;
-    if (elRejected) elRejected.textContent = countRejected;
-
-    this.renderJobCards();
+    this.renderKanbanBoard();
   }
 
-  renderJobCards() {
-    if (!this.jobCardsGrid) return;
-    this.jobCardsGrid.innerHTML = '';
+  renderKanbanBoard() {
+    if (!this.kanbanBoard) return;
+    this.kanbanBoard.innerHTML = '';
 
-    let filtered = this.jobs;
-    if (this.jobFilter !== 'all') {
-      filtered = filtered.filter(j => j.status === this.jobFilter);
-    }
+    const stages = [
+      { id: 'wishlist', name: 'Wishlist', dotClass: 'col-wishlist' },
+      { id: 'applied', name: 'Applied', dotClass: 'col-applied' },
+      { id: 'interviewing', name: 'Interviewing', dotClass: 'col-interviewing' },
+      { id: 'offered', name: 'Offer Received', dotClass: 'col-offered' },
+      { id: 'rejected', name: 'Archived', dotClass: 'col-rejected' }
+    ];
 
-    if (this.searchQuery) {
-      filtered = filtered.filter(j => 
-        (j.role && j.role.toLowerCase().includes(this.searchQuery)) ||
-        (j.company && j.company.toLowerCase().includes(this.searchQuery)) ||
-        (j.location && j.location.toLowerCase().includes(this.searchQuery)) ||
-        (j.notes && j.notes.toLowerCase().includes(this.searchQuery))
-      );
-    }
+    stages.forEach(stage => {
+      // Filter jobs for this stage
+      let columnJobs = this.jobs.filter(j => j.status === stage.id);
 
-    if (filtered.length === 0) {
-      const emptyDiv = document.createElement('div');
-      emptyDiv.className = 'empty-state';
-      emptyDiv.style.gridColumn = '1 / -1';
-      emptyDiv.innerHTML = `
-        <div class="empty-state-icon">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-          </svg>
+      if (this.searchQuery) {
+        columnJobs = columnJobs.filter(j =>
+          (j.role && j.role.toLowerCase().includes(this.searchQuery)) ||
+          (j.company && j.company.toLowerCase().includes(this.searchQuery)) ||
+          (j.location && j.location.toLowerCase().includes(this.searchQuery)) ||
+          (j.notes && j.notes.toLowerCase().includes(this.searchQuery))
+        );
+      }
+
+      const colEl = document.createElement('div');
+      colEl.className = 'kanban-column';
+      colEl.setAttribute('data-stage', stage.id);
+
+      colEl.innerHTML = `
+        <div class="kanban-col-header ${stage.dotClass}">
+          <div class="kanban-col-title">
+            <span class="kanban-col-dot"></span>
+            <span class="kanban-col-name">${stage.name}</span>
+            <span class="kanban-col-count">${columnJobs.length}</span>
+          </div>
+          <button class="kanban-col-add-btn" title="Add to ${stage.name}" aria-label="Add application to ${stage.name}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
         </div>
-        <div class="empty-state-title">No job applications in this view</div>
-        <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">Click "Add Application" or press <kbd>Cmd+V</kbd> to paste a job screenshot.</p>
+        <div class="kanban-col-body" data-stage="${stage.id}"></div>
       `;
-      this.jobCardsGrid.appendChild(emptyDiv);
-      return;
-    }
 
-    filtered.forEach(job => {
-      const card = document.createElement('div');
-      card.className = 'job-card';
-
-      const dateObj = job.appliedAt ? new Date(job.appliedAt) : new Date();
-      const dateFormatted = dateObj.toLocaleDateString('en-IN', {
-        month: 'short',
-        day: 'numeric'
+      // Plus button in column header
+      const addBtn = colEl.querySelector('.kanban-col-add-btn');
+      addBtn.addEventListener('click', () => {
+        this.openAddJobForm(stage.id);
       });
 
-      card.innerHTML = `
-        <div>
-          <div class="job-card-header">
-            <div class="job-card-header-left">
-              <div class="job-company-avatar" style="background-color: ${this.getCompanyColor(job.company)};">
+      const colBody = colEl.querySelector('.kanban-col-body');
+
+      // Drag and drop target events for columns
+      colBody.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        colBody.classList.add('drag-over');
+      });
+
+      colBody.addEventListener('dragleave', () => {
+        colBody.classList.remove('drag-over');
+      });
+
+      colBody.addEventListener('drop', (e) => {
+        e.preventDefault();
+        colBody.classList.remove('drag-over');
+        const jobId = e.dataTransfer.getData('text/plain');
+        if (!jobId) return;
+        const job = this.jobs.find(j => j.id === jobId);
+        if (job && job.status !== stage.id) {
+          job.status = stage.id;
+          this.saveJobs();
+          this.renderJobsView();
+          this.showToast(`Moved ${job.company} to ${stage.name}`);
+        }
+      });
+
+      if (columnJobs.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'kanban-empty';
+        emptyDiv.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add application</span>
+        `;
+        emptyDiv.addEventListener('click', () => {
+          this.openAddJobForm(stage.id);
+        });
+        colBody.appendChild(emptyDiv);
+      } else {
+        columnJobs.forEach(job => {
+          const card = document.createElement('div');
+          card.className = 'kanban-card';
+          card.setAttribute('draggable', 'true');
+
+          card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', job.id);
+            card.classList.add('dragging');
+          });
+
+          card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+          });
+
+          const dateObj = job.appliedAt ? new Date(job.appliedAt) : new Date();
+          const dateFormatted = dateObj.toLocaleDateString('en-IN', {
+            month: 'short',
+            day: 'numeric'
+          });
+
+          card.innerHTML = `
+            <div class="kanban-card-top">
+              <div class="kanban-company-avatar" style="background-color: ${this.getCompanyColor(job.company)};">
                 ${escapeHTML((job.company || 'J').charAt(0).toUpperCase())}
               </div>
-              <div>
-                <div class="job-card-role">${escapeHTML(job.role)}</div>
-                <div class="job-card-company">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              <div class="kanban-card-info">
+                <div class="kanban-card-role" title="${escapeHTML(job.role)}">${escapeHTML(job.role)}</div>
+                <div class="kanban-card-company">${escapeHTML(job.company)}</div>
+              </div>
+              <button class="kanban-card-delete" title="Delete application" aria-label="Delete application">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="kanban-card-pills">
+              ${job.location ? `
+                <span class="kanban-pill">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
                   </svg>
-                  <span>${escapeHTML(job.company)}</span>
-                </div>
-              </div>
+                  <span>${escapeHTML(job.location)}</span>
+                </span>
+              ` : ''}
+              ${job.salary ? `
+                <span class="kanban-pill salary-pill">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                  </svg>
+                  <span>${escapeHTML(job.salary)}</span>
+                </span>
+              ` : ''}
+              ${job.link ? `
+                <span class="kanban-pill link-pill">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                  <a href="${escapeHTML(job.link)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">Post</a>
+                </span>
+              ` : ''}
             </div>
-            <span class="job-status-badge badge-${job.status}">${this.formatJobStatusBadge(job.status)}</span>
-          </div>
 
-          <div class="job-meta-row" style="margin-top: 10px;">
-            ${job.location ? `
-              <div class="job-meta-pill" title="Location">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <span>${escapeHTML(job.location)}</span>
-              </div>
+            ${job.notes ? `
+              <div class="kanban-card-notes">${escapeHTML(job.notes)}</div>
             ` : ''}
-            ${job.salary ? `
-              <div class="job-meta-pill salary" title="Salary / CTC">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="1" x2="12" y2="23"></line>
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                </svg>
-                <span>${escapeHTML(job.salary)}</span>
-              </div>
-            ` : ''}
-            ${job.link ? `
-              <div class="job-meta-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-                <a href="${escapeHTML(job.link)}" target="_blank" rel="noopener noreferrer">View Post</a>
-              </div>
-            ` : ''}
-          </div>
 
-          ${job.notes ? `
-            <div class="job-card-notes" style="margin-top: 10px;">
-              <strong>Notes:</strong> ${escapeHTML(job.notes)}
+            <div class="kanban-card-footer">
+              <span class="kanban-card-date">${dateFormatted}</span>
+              <select class="kanban-stage-select" aria-label="Change pipeline stage">
+                <option value="wishlist" ${job.status === 'wishlist' ? 'selected' : ''}>Wishlist</option>
+                <option value="applied" ${job.status === 'applied' ? 'selected' : ''}>Applied</option>
+                <option value="interviewing" ${job.status === 'interviewing' ? 'selected' : ''}>Interviewing</option>
+                <option value="offered" ${job.status === 'offered' ? 'selected' : ''}>Offer</option>
+                <option value="rejected" ${job.status === 'rejected' ? 'selected' : ''}>Archived</option>
+              </select>
             </div>
-          ` : ''}
-        </div>
+          `;
 
-        <div class="job-card-footer">
-          <span class="job-card-date">Added ${dateFormatted}</span>
-          <div class="job-actions-wrap">
-            <select class="job-status-quick-select" aria-label="Update status">
-              <option value="wishlist" ${job.status === 'wishlist' ? 'selected' : ''}>Wishlist</option>
-              <option value="applied" ${job.status === 'applied' ? 'selected' : ''}>Applied</option>
-              <option value="interviewing" ${job.status === 'interviewing' ? 'selected' : ''}>Interviewing</option>
-              <option value="offered" ${job.status === 'offered' ? 'selected' : ''}>Offered</option>
-              <option value="rejected" ${job.status === 'rejected' ? 'selected' : ''}>Archived</option>
-            </select>
-            <button class="delete-job-btn" title="Delete job application" aria-label="Delete job application">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-      `;
+          // Stage change handler from dropdown
+          const stageSelect = card.querySelector('.kanban-stage-select');
+          stageSelect.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const newStage = e.target.value;
+            job.status = newStage;
+            this.saveJobs();
+            this.renderJobsView();
+            const stageObj = stages.find(s => s.id === newStage);
+            this.showToast(`Moved ${job.company} to ${stageObj ? stageObj.name : newStage}`);
+          });
 
-      // Status Change Handler
-      const statusSelect = card.querySelector('.job-status-quick-select');
-      statusSelect.addEventListener('change', (e) => {
-        job.status = e.target.value;
-        this.saveJobs();
-        this.renderJobsView();
-        this.showToast(`Updated ${job.company} status to ${this.formatJobStatusBadge(job.status)}`);
-      });
+          // Delete button opens confirmation modal (no ugly alert boxes!)
+          const deleteBtn = card.querySelector('.kanban-card-delete');
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openDeleteJobModal(job.id);
+          });
 
-      // Delete Handler - Instant removal without alert box modal
-      const deleteBtn = card.querySelector('.delete-job-btn');
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const companyName = job.company || 'Job';
-        this.jobs = this.jobs.filter(j => j.id !== job.id);
-        this.saveJobs();
-        this.renderJobsView();
-        this.showToast(`Deleted ${companyName} application`);
-      });
+          colBody.appendChild(card);
+        });
+      }
 
-      this.jobCardsGrid.appendChild(card);
+      this.kanbanBoard.appendChild(colEl);
     });
   }
 
