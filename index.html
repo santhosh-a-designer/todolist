@@ -265,7 +265,6 @@
         <div class="jobs-header">
           <div class="jobs-title-row">
             <div>
-              <h2 class="jobs-main-title">Job Application Tracker</h2>
               <p class="jobs-subtitle">Auto-fill details from screenshots, links, or job descriptions and track your interview pipeline.</p>
             </div>
             <button class="todoist-btn primary-btn add-job-btn-trigger" id="toggleSmartAddBtn">
@@ -273,7 +272,7 @@
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
-              <span>+ Add Application</span>
+              <span>Add Application</span>
             </button>
           </div>
 
@@ -302,12 +301,17 @@
         <div class="smart-add-card hidden" id="smartAddCard">
           <div class="smart-add-header">
             <div class="smart-add-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
-              <span>Smart Auto-Fill: Paste Screenshot, Link or Text</span>
+              <span>Auto-Fill from Screenshot, Link, or Text</span>
             </div>
-            <button class="icon-btn close-smart-add" id="closeSmartAddBtn" title="Close">✕</button>
+            <button class="icon-btn close-smart-add" id="closeSmartAddBtn" title="Close" aria-label="Close">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
 
           <div class="smart-add-body">
@@ -316,7 +320,7 @@
               <input type="file" id="jobImageFileInput" accept="image/*" class="hidden">
               <div class="drop-zone-content">
                 <div class="drop-zone-icon">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <circle cx="8.5" cy="8.5" r="1.5"></circle>
                     <polyline points="21 15 16 10 5 21"></polyline>
@@ -324,7 +328,7 @@
                 </div>
                 <div class="drop-zone-text">
                   <strong>Click to upload, drag image, or press <kbd>Cmd+V</kbd> to paste screenshot</strong>
-                  <span>Supports screenshots from LinkedIn, Naukri, Indeed, or career sites</span>
+                  <span>Supports screenshots from LinkedIn, Naukri, Indeed, or career portals</span>
                 </div>
               </div>
               <div class="ocr-status-overlay hidden" id="ocrStatusOverlay">
@@ -336,7 +340,7 @@
             <!-- Text / URL Quick Paste Box -->
             <div class="smart-text-input-wrap">
               <label for="smartTextInput">Or paste Job Description text or link:</label>
-              <textarea id="smartTextInput" placeholder="e.g. Swiggy is hiring a Senior Product Designer in Bangalore (Hybrid). CTC: ₹22-28 LPA. Apply at https://careers.swiggy.com/job/123" rows="3" class="todoist-textarea"></textarea>
+              <textarea id="smartTextInput" placeholder="e.g. Swiggy is hiring a Senior Product Designer in Bangalore (Hybrid). CTC: 22-28 LPA. Apply at https://careers.swiggy.com/job/123" rows="3" class="todoist-textarea"></textarea>
               <button type="button" class="action-pill-btn auto-parse-btn" id="parseTextBtn">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"></polyline>
@@ -362,7 +366,7 @@
                 </div>
                 <div class="form-group">
                   <label for="jobSalaryInput">Salary / Package (CTC)</label>
-                  <input type="text" id="jobSalaryInput" class="todoist-input" placeholder="e.g. ₹24 LPA or $120k">
+                  <input type="text" id="jobSalaryInput" class="todoist-input" placeholder="e.g. 24 LPA or $120k">
                 </div>
                 <div class="form-group">
                   <label for="jobLinkInput">Job Posting URL</label>
@@ -371,11 +375,11 @@
                 <div class="form-group">
                   <label for="jobStatusSelect">Current Status</label>
                   <select id="jobStatusSelect" class="todoist-select">
-                    <option value="applied">Applied 📤</option>
-                    <option value="interviewing">Interviewing 🎯</option>
-                    <option value="wishlist">Wishlist / To Apply 📌</option>
-                    <option value="offered">Offered 🎉</option>
-                    <option value="rejected">Rejected / Archived ✕</option>
+                    <option value="applied">Applied</option>
+                    <option value="interviewing">Interviewing</option>
+                    <option value="wishlist">Wishlist</option>
+                    <option value="offered">Offered</option>
+                    <option value="rejected">Archived</option>
                   </select>
                 </div>
               </div>
@@ -393,13 +397,13 @@
 
         <!-- Pipeline Filter Tabs -->
         <div class="job-filter-bar">
-          <div class="period-tabs job-status-tabs" id="jobStatusTabs">
-            <button class="period-tab active" data-status="all">All (<span id="countAll">0</span>)</button>
-            <button class="period-tab" data-status="wishlist">Wishlist (<span id="countWishlist">0</span>)</button>
-            <button class="period-tab" data-status="applied">Applied (<span id="countApplied">0</span>)</button>
-            <button class="period-tab" data-status="interviewing">Interviewing (<span id="countInterviewing">0</span>)</button>
-            <button class="period-tab" data-status="offered">Offered (<span id="countOffered">0</span>)</button>
-            <button class="period-tab" data-status="rejected">Archived (<span id="countRejected">0</span>)</button>
+          <div class="job-status-tabs" id="jobStatusTabs">
+            <button class="job-filter-tab active" data-status="all">All (<span id="countAll">0</span>)</button>
+            <button class="job-filter-tab" data-status="wishlist">Wishlist (<span id="countWishlist">0</span>)</button>
+            <button class="job-filter-tab" data-status="applied">Applied (<span id="countApplied">0</span>)</button>
+            <button class="job-filter-tab" data-status="interviewing">Interviewing (<span id="countInterviewing">0</span>)</button>
+            <button class="job-filter-tab" data-status="offered">Offered (<span id="countOffered">0</span>)</button>
+            <button class="job-filter-tab" data-status="rejected">Archived (<span id="countRejected">0</span>)</button>
           </div>
         </div>
 

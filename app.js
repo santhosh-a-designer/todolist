@@ -235,7 +235,9 @@ class TodoistMultiApp {
     this.projects = this.loadProjects();
     this.jobs = this.loadJobs();
     this.activeProjectId = localStorage.getItem('todoist_active_project') || this.projects[0].id;
-    this.currentView = 'project'; // 'project' | 'dashboard' | 'analytics' | 'jobs'
+    this.currentView = window.location.hash === '#jobs' ? 'jobs' : 
+                       (window.location.hash === '#analytics' ? 'analytics' : 
+                       (window.location.hash === '#dashboard' ? 'dashboard' : 'project'));
     this.analyticsPeriod = 'weekly'; // 'weekly' | 'monthly' | 'all'
     this.jobFilter = 'all'; // 'all' | 'wishlist' | 'applied' | 'interviewing' | 'offered' | 'rejected'
     this.searchQuery = '';
@@ -371,7 +373,7 @@ class TodoistMultiApp {
       const saved = localStorage.getItem('todoist_jobs_data');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (e) {
       console.error('Failed to load jobs from localStorage', e);
@@ -468,6 +470,7 @@ class TodoistMultiApp {
     if (this.navDashboard) {
       this.navDashboard.addEventListener('click', (e) => {
         e.preventDefault();
+        window.location.hash = 'dashboard';
         this.currentView = 'dashboard';
         this.render();
       });
@@ -477,6 +480,7 @@ class TodoistMultiApp {
     if (this.navAnalytics) {
       this.navAnalytics.addEventListener('click', (e) => {
         e.preventDefault();
+        window.location.hash = 'analytics';
         this.currentView = 'analytics';
         this.render();
       });
@@ -486,10 +490,23 @@ class TodoistMultiApp {
     if (this.navJobs) {
       this.navJobs.addEventListener('click', (e) => {
         e.preventDefault();
+        window.location.hash = 'jobs';
         this.currentView = 'jobs';
         this.render();
       });
     }
+
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash;
+      if (hash === '#jobs') {
+        this.currentView = 'jobs';
+      } else if (hash === '#analytics') {
+        this.currentView = 'analytics';
+      } else if (hash === '#dashboard') {
+        this.currentView = 'dashboard';
+      }
+      this.render();
+    });
 
     // Analytics Period Tabs
     const periodTabs = document.querySelectorAll('.period-tab');
@@ -1176,7 +1193,12 @@ class TodoistMultiApp {
             <span class="ledger-item-meta">
               <span>${escapeHTML(item.slotName)}</span>
               <span>•</span>
-              <button class="date-edit-btn" title="Click to adjust completion date" style="background: none; border: none; font-size: inherit; color: inherit; cursor: pointer; text-decoration: underline; padding: 0;">${timeFormatted} ✎</button>
+              <button class="date-edit-btn" title="Click to adjust completion date" style="background: none; border: none; font-size: inherit; color: inherit; cursor: pointer; text-decoration: underline; padding: 0; display: inline-flex; align-items: center; gap: 3px;">
+                <span>${timeFormatted}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                </svg>
+              </button>
             </span>
           </div>
         </div>
@@ -1888,7 +1910,7 @@ class TodoistMultiApp {
     }
 
     if (this.jobStatusTabs) {
-      const tabs = this.jobStatusTabs.querySelectorAll('.period-tab');
+      const tabs = this.jobStatusTabs.querySelectorAll('.job-filter-tab');
       tabs.forEach(tab => {
         tab.addEventListener('click', () => {
           tabs.forEach(t => t.classList.remove('active'));
@@ -1931,7 +1953,7 @@ class TodoistMultiApp {
         this.saveJobs();
         this.closeAddJobForm();
         this.renderJobsView();
-        this.showToast(`Saved application for ${company}! 🎉`);
+        this.showToast(`Saved application for ${company}`);
       });
     }
   }
@@ -2031,7 +2053,7 @@ class TodoistMultiApp {
       const recognizedText = (worker && worker.data && worker.data.text) ? worker.data.text : '';
       if (this.smartTextInput) this.smartTextInput.value = recognizedText;
       this.parseJobText(recognizedText);
-      this.showToast('✨ Auto-filled job details from screenshot!');
+      this.showToast('Auto-filled job details from screenshot');
     } catch (err) {
       console.error('OCR Error:', err);
       this.showToast('Could not extract text. Please paste description or link.');
@@ -2119,7 +2141,7 @@ class TodoistMultiApp {
           </svg>
         </div>
         <div class="empty-state-title">No job applications in this view</div>
-        <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">Click "+ Add Application" or press <kbd>Cmd+V</kbd> to paste a job screenshot!</p>
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">Click "Add Application" or press <kbd>Cmd+V</kbd> to paste a job screenshot.</p>
       `;
       this.jobCardsGrid.appendChild(emptyDiv);
       return;
@@ -2138,14 +2160,19 @@ class TodoistMultiApp {
       card.innerHTML = `
         <div>
           <div class="job-card-header">
-            <div>
-              <div class="job-card-role">${escapeHTML(job.role)}</div>
-              <div class="job-card-company">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                </svg>
-                <span>${escapeHTML(job.company)}</span>
+            <div class="job-card-header-left">
+              <div class="job-company-avatar" style="background-color: ${this.getCompanyColor(job.company)};">
+                ${escapeHTML((job.company || 'J').charAt(0).toUpperCase())}
+              </div>
+              <div>
+                <div class="job-card-role">${escapeHTML(job.role)}</div>
+                <div class="job-card-company">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                  </svg>
+                  <span>${escapeHTML(job.company)}</span>
+                </div>
               </div>
             </div>
             <span class="job-status-badge badge-${job.status}">${this.formatJobStatusBadge(job.status)}</span>
@@ -2163,7 +2190,11 @@ class TodoistMultiApp {
             ` : ''}
             ${job.salary ? `
               <div class="job-meta-pill salary" title="Salary / CTC">
-                <span>💰 ${escapeHTML(job.salary)}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                <span>${escapeHTML(job.salary)}</span>
               </div>
             ` : ''}
             ${job.link ? `
@@ -2180,7 +2211,7 @@ class TodoistMultiApp {
 
           ${job.notes ? `
             <div class="job-card-notes" style="margin-top: 10px;">
-              <strong>Progress / Notes:</strong> ${escapeHTML(job.notes)}
+              <strong>Notes:</strong> ${escapeHTML(job.notes)}
             </div>
           ` : ''}
         </div>
@@ -2189,13 +2220,13 @@ class TodoistMultiApp {
           <span class="job-card-date">Added ${dateFormatted}</span>
           <div class="job-actions-wrap">
             <select class="job-status-quick-select" aria-label="Update status">
-              <option value="wishlist" ${job.status === 'wishlist' ? 'selected' : ''}>Wishlist 📌</option>
-              <option value="applied" ${job.status === 'applied' ? 'selected' : ''}>Applied 📤</option>
-              <option value="interviewing" ${job.status === 'interviewing' ? 'selected' : ''}>Interviewing 🎯</option>
-              <option value="offered" ${job.status === 'offered' ? 'selected' : ''}>Offered 🎉</option>
-              <option value="rejected" ${job.status === 'rejected' ? 'selected' : ''}>Archived ✕</option>
+              <option value="wishlist" ${job.status === 'wishlist' ? 'selected' : ''}>Wishlist</option>
+              <option value="applied" ${job.status === 'applied' ? 'selected' : ''}>Applied</option>
+              <option value="interviewing" ${job.status === 'interviewing' ? 'selected' : ''}>Interviewing</option>
+              <option value="offered" ${job.status === 'offered' ? 'selected' : ''}>Offered</option>
+              <option value="rejected" ${job.status === 'rejected' ? 'selected' : ''}>Archived</option>
             </select>
-            <button class="delete-job-btn" title="Delete job application">
+            <button class="delete-job-btn" title="Delete job application" aria-label="Delete job application">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -2211,23 +2242,35 @@ class TodoistMultiApp {
         job.status = e.target.value;
         this.saveJobs();
         this.renderJobsView();
-        this.showToast(`Updated ${job.company} status to ${this.formatJobStatusBadge(job.status)}!`);
+        this.showToast(`Updated ${job.company} status to ${this.formatJobStatusBadge(job.status)}`);
       });
 
-      // Delete Handler
+      // Delete Handler - Instant removal without alert box modal
       const deleteBtn = card.querySelector('.delete-job-btn');
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (confirm(`Remove application for ${job.role} at ${job.company}?`)) {
-          this.jobs = this.jobs.filter(j => j.id !== job.id);
-          this.saveJobs();
-          this.renderJobsView();
-          this.showToast(`Removed ${job.company}`);
-        }
+        const companyName = job.company || 'Job';
+        this.jobs = this.jobs.filter(j => j.id !== job.id);
+        this.saveJobs();
+        this.renderJobsView();
+        this.showToast(`Deleted ${companyName} application`);
       });
 
       this.jobCardsGrid.appendChild(card);
     });
+  }
+
+  getCompanyColor(name) {
+    const colors = [
+      '#dc2626', '#ea580c', '#d97706', '#059669', 
+      '#0284c7', '#2563eb', '#7c3aed', '#db2777', '#475569'
+    ];
+    if (!name) return colors[0];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
   }
 
   formatJobStatusBadge(status) {
