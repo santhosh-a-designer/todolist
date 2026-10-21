@@ -452,6 +452,20 @@ button, input, select, textarea {
   margin: 0 auto;
   padding: 44px 72px;
   width: 100%;
+  transition: max-width var(--transition-normal), padding var(--transition-normal);
+}
+
+/* Full-width view for Kanban boards & analytics */
+.main-content:has(#jobsView:not(.hidden)),
+.main-content.full-width-view {
+  max-width: 100%;
+  padding: 24px 32px;
+  margin: 0;
+}
+
+.main-content:has(#jobsView:not(.hidden)) .top-header,
+.main-content.full-width-view .top-header {
+  margin-bottom: 20px;
 }
 
 .top-header {
@@ -2145,13 +2159,14 @@ button, input, select, textarea {
 
 /* ---- Single Column ---- */
 .kanban-column {
-  flex: 0 0 280px;
-  width: 280px;
+  flex: 1 1 240px;
+  min-width: 240px;
+  max-width: 380px;
   background: var(--bg-hover-subtle);
   border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 300px);
+  max-height: calc(100vh - 280px);
   border: 1px solid var(--border-color);
   overflow: hidden;
 }

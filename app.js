@@ -778,6 +778,11 @@ class TodoistMultiApp {
   render() {
     this.renderSidebarProjects();
 
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.classList.toggle('full-width-view', this.currentView === 'jobs');
+    }
+
     if (this.currentView === 'dashboard') {
       this.renderDashboardView();
     } else if (this.currentView === 'analytics') {
