@@ -2086,15 +2086,19 @@ button, input, select, textarea {
   background: var(--bg-app);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  padding: 18px 16px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition-fast);
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .job-stat-card:hover {
+  transform: translateY(-1px);
   box-shadow: var(--shadow-card);
 }
 
@@ -2106,28 +2110,39 @@ button, input, select, textarea {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin: 0 auto;
 }
 
 .job-stat-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  width: 100%;
 }
 
 .job-stat-label {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-align: center;
+  width: 100%;
+  display: block;
 }
 
 .job-stat-val {
   font-family: var(--font-heading);
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   color: var(--text-main);
-  line-height: 1;
+  line-height: 1.1;
+  text-align: center;
+  width: 100%;
+  display: block;
 }
 
 .job-stat-val.text-blue { color: #2563eb; }
@@ -2645,15 +2660,45 @@ button, input, select, textarea {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Text Input in Drawer */
-.smart-text-input-wrap { position: relative; }
+.smart-text-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.todoist-textarea,
+.smart-text-input-wrap textarea {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-main);
+  background-color: var(--bg-hover-subtle);
+  outline: none;
+  resize: vertical;
+  min-height: 64px;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.todoist-textarea:focus,
+.smart-text-input-wrap textarea:focus {
+  border-color: var(--primary-red);
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(219, 76, 63, 0.1);
+}
 
 .auto-parse-btn {
-  margin-top: 8px;
-  background-color: #fff;
+  align-self: flex-end;
+  background-color: var(--bg-hover-subtle);
   border: 1px solid var(--border-color);
   color: var(--text-main);
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 7px 14px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
