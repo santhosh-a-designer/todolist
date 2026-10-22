@@ -2064,6 +2064,62 @@ class TodoistMultiApp {
         this.showToast(`Saved application for ${company}`);
       });
     }
+
+    this.setupKanbanBoardScrolling();
+  }
+
+  setupKanbanBoardScrolling() {
+    if (!this.kanbanBoard) return;
+
+    // 1. Mouse wheel horizontal scrolling
+    this.kanbanBoard.addEventListener('wheel', (e) => {
+      // If hovering over a column card list that has vertical scrollable room, let it scroll vertically
+      const colBody = e.target.closest('.kanban-col-body');
+      if (colBody && colBody.scrollHeight > colBody.clientHeight) {
+        const atTop = colBody.scrollTop === 0 && e.deltaY < 0;
+        const atBottom = Math.abs(colBody.scrollHeight - colBody.clientHeight - colBody.scrollTop) < 2 && e.deltaY > 0;
+        if (!atTop && !atBottom) {
+          return; // Let the card list scroll vertically
+        }
+      }
+
+      // Convert vertical wheel to smooth horizontal board scroll
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        this.kanbanBoard.scrollLeft += e.deltaY * 1.2;
+      }
+    }, { passive: false });
+
+    // 2. Click and drag to scroll (Jira / Linear style)
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    this.kanbanBoard.addEventListener('mousedown', (e) => {
+      // Don't drag if clicking interactive elements (cards, buttons, inputs, links, select)
+      if (e.target.closest('.kanban-card, button, input, select, a, textarea')) return;
+      isDown = true;
+      this.kanbanBoard.classList.add('is-dragging-board');
+      startX = e.pageX - this.kanbanBoard.offsetLeft;
+      scrollLeft = this.kanbanBoard.scrollLeft;
+    });
+
+    const stopDragging = () => {
+      if (!isDown) return;
+      isDown = false;
+      this.kanbanBoard.classList.remove('is-dragging-board');
+    };
+
+    window.addEventListener('mouseup', stopDragging);
+    this.kanbanBoard.addEventListener('mouseleave', stopDragging);
+
+    this.kanbanBoard.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - this.kanbanBoard.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      this.kanbanBoard.scrollLeft = scrollLeft - walk;
+    });
   }
 
   openAddJobForm(defaultStatus = 'applied') {
