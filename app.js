@@ -2071,26 +2071,7 @@ class TodoistMultiApp {
   setupKanbanBoardScrolling() {
     if (!this.kanbanBoard) return;
 
-    // 1. Mouse wheel horizontal scrolling
-    this.kanbanBoard.addEventListener('wheel', (e) => {
-      // If hovering over a column card list that has vertical scrollable room, let it scroll vertically
-      const colBody = e.target.closest('.kanban-col-body');
-      if (colBody && colBody.scrollHeight > colBody.clientHeight) {
-        const atTop = colBody.scrollTop === 0 && e.deltaY < 0;
-        const atBottom = Math.abs(colBody.scrollHeight - colBody.clientHeight - colBody.scrollTop) < 2 && e.deltaY > 0;
-        if (!atTop && !atBottom) {
-          return; // Let the card list scroll vertically
-        }
-      }
-
-      // Convert vertical wheel to smooth horizontal board scroll
-      if (e.deltaY !== 0) {
-        e.preventDefault();
-        this.kanbanBoard.scrollLeft += e.deltaY * 1.2;
-      }
-    }, { passive: false });
-
-    // 2. Click and drag to scroll (Jira / Linear style)
+    // Click and drag to pan horizontally across columns (Jira / Linear style)
     let isDown = false;
     let startX = 0;
     let scrollLeft = 0;
