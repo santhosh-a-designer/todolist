@@ -1961,12 +1961,47 @@ class TodoistMultiApp {
     });
 
     if (this.parseTextBtn) {
-      this.parseTextBtn.addEventListener('click', () => {
+      this.parseTextBtn.addEventListener('click', async () => {
         const text = this.smartTextInput ? this.smartTextInput.value.trim() : '';
         if (!text) {
           this.showToast('Please paste job text or link first');
           return;
         }
+
+        const originalBtnHTML = this.parseTextBtn.innerHTML;
+        const urlMatch = text.match(/https?:\/\/[^\s]+/i);
+
+        if (urlMatch) {
+          // If a URL was provided, attempt serverless scraper to extract full title, company, location
+          try {
+            this.parseTextBtn.disabled = true;
+            this.parseTextBtn.innerHTML = `
+              <div class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:4px;"></div>
+              <span>Fetching details...</span>
+            `;
+
+            const res = await fetch(`/.netlify/functions/parse-job?url=${encodeURIComponent(urlMatch[0])}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.role && this.jobRoleInput) this.jobRoleInput.value = data.role;
+              if (data.company && this.jobCompanyInput) this.jobCompanyInput.value = data.company;
+              if (data.location && this.jobLocationInput) this.jobLocationInput.value = data.location;
+              if (data.salary && this.jobSalaryInput) this.jobSalaryInput.value = data.salary;
+              if (data.link && this.jobLinkInput) this.jobLinkInput.value = data.link;
+              if (data.notes && this.jobNotesInput && !this.jobNotesInput.value) this.jobNotesInput.value = data.notes;
+
+              this.showToast(`Auto-filled details for ${data.company || data.role || 'job'}!`);
+              return;
+            }
+          } catch (err) {
+            console.warn('Serverless parser unavailable, falling back to local extractor:', err);
+          } finally {
+            this.parseTextBtn.disabled = false;
+            this.parseTextBtn.innerHTML = originalBtnHTML;
+          }
+        }
+
+        // Local regex parsing fallback (or for pasted text)
         this.parseJobText(text);
         this.showToast('Extracted job details!');
       });
@@ -2103,8 +2138,10 @@ class TodoistMultiApp {
     } else if (urlMatch && this.jobCompanyInput && !this.jobCompanyInput.value) {
       try {
         const parsedUrl = new URL(urlMatch[0]);
-        const hostParts = parsedUrl.hostname.split('.');
-        const mainPart = hostParts.find(p => !['www', 'careers', 'jobs', 'lever', 'greenhouse', 'workday', 'com', 'co', 'in', 'org', 'io', 'net'].includes(p.toLowerCase()));
+        let host = parsedUrl.hostname.toLowerCase();
+        host = host.replace(/^(?:www|careers|jobs|usi|usijobs|careersusi|recruiting|myworkdayjobs|workday|lever|greenhouse|boards)\./i, '');
+        const hostParts = host.split('.');
+        const mainPart = hostParts[0];
         if (mainPart) {
           this.jobCompanyInput.value = mainPart.charAt(0).toUpperCase() + mainPart.slice(1);
         }
