@@ -2341,6 +2341,7 @@ class TodoistMultiApp {
     const stages = [
       { id: 'wishlist', name: 'Wishlist', dotClass: 'col-wishlist' },
       { id: 'applied', name: 'Applied', dotClass: 'col-applied' },
+      { id: 'just_for_fun', name: 'Just for Fun', dotClass: 'col-fun' },
       { id: 'interviewing', name: 'Interviewing', dotClass: 'col-interviewing' },
       { id: 'offered', name: 'Offer Received', dotClass: 'col-offered' },
       { id: 'rejected', name: 'Archived', dotClass: 'col-rejected' }
@@ -2523,6 +2524,7 @@ class TodoistMultiApp {
               <select class="kanban-stage-select" aria-label="Change pipeline stage">
                 <option value="wishlist" ${job.status === 'wishlist' ? 'selected' : ''}>Wishlist</option>
                 <option value="applied" ${job.status === 'applied' ? 'selected' : ''}>Applied</option>
+                <option value="just_for_fun" ${job.status === 'just_for_fun' ? 'selected' : ''}>Just for Fun 🎯</option>
                 <option value="interviewing" ${job.status === 'interviewing' ? 'selected' : ''}>Interviewing</option>
                 <option value="offered" ${job.status === 'offered' ? 'selected' : ''}>Offer</option>
                 <option value="rejected" ${job.status === 'rejected' ? 'selected' : ''}>Archived</option>
@@ -2600,6 +2602,7 @@ class TodoistMultiApp {
     switch (status) {
       case 'wishlist': return 'Wishlist';
       case 'applied': return 'Applied';
+      case 'just_for_fun': return 'Just for Fun 🎯';
       case 'interviewing': return 'Interviewing';
       case 'offered': return 'Offer Received';
       case 'rejected': return 'Archived';
