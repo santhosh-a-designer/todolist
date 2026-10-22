@@ -331,6 +331,8 @@ class TodoistMultiApp {
     this.confirmDeleteJobBtn = document.getElementById('confirmDeleteJobBtn');
     this.cancelDeleteJobBtn = document.getElementById('cancelDeleteJobBtn');
     this.pendingDeleteJobId = null; // stores which job is pending deletion
+    this.editingJobId = null; // stores which job is being edited in drawer
+    this.saveJobBtn = document.getElementById('saveJobBtn');
 
     // Pipeline Stats Elements
     this.jobStatApplied = document.getElementById('jobStatApplied');
@@ -2023,6 +2025,26 @@ class TodoistMultiApp {
           return;
         }
 
+        if (this.editingJobId) {
+          const job = this.jobs.find(j => j.id === this.editingJobId);
+          if (job) {
+            job.role = role;
+            job.company = company;
+            job.location = location;
+            job.salary = salary;
+            job.link = link;
+            job.status = status;
+            job.notes = notes;
+            job.updatedAt = new Date().toISOString();
+
+            this.saveJobs();
+            this.closeAddJobForm();
+            this.renderJobsView();
+            this.showToast(`Updated application for ${company}`);
+            return;
+          }
+        }
+
         const newJob = {
           id: 'job-' + Date.now(),
           role,
@@ -2045,6 +2067,18 @@ class TodoistMultiApp {
   }
 
   openAddJobForm(defaultStatus = 'applied') {
+    this.editingJobId = null;
+
+    if (this.jobDrawerTitleText) {
+      this.jobDrawerTitleText.textContent = 'New Application';
+    }
+    if (this.saveJobBtn) {
+      this.saveJobBtn.textContent = 'Save Application';
+    }
+
+    if (this.jobForm) this.jobForm.reset();
+    if (this.smartTextInput) this.smartTextInput.value = '';
+
     if (this.jobStatusSelect) {
       this.jobStatusSelect.value = defaultStatus;
     }
@@ -2059,7 +2093,41 @@ class TodoistMultiApp {
     }
   }
 
+  openEditJobForm(jobId) {
+    const job = this.jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    this.editingJobId = jobId;
+
+    if (this.jobDrawerTitleText) {
+      this.jobDrawerTitleText.textContent = `Edit Application`;
+    }
+    if (this.saveJobBtn) {
+      this.saveJobBtn.textContent = 'Save Changes';
+    }
+
+    if (this.jobRoleInput) this.jobRoleInput.value = job.role || '';
+    if (this.jobCompanyInput) this.jobCompanyInput.value = job.company || '';
+    if (this.jobLocationInput) this.jobLocationInput.value = job.location || '';
+    if (this.jobSalaryInput) this.jobSalaryInput.value = job.salary || '';
+    if (this.jobLinkInput) this.jobLinkInput.value = job.link || '';
+    if (this.jobStatusSelect) this.jobStatusSelect.value = job.status || 'applied';
+    if (this.jobNotesInput) this.jobNotesInput.value = job.notes || '';
+    if (this.smartTextInput) this.smartTextInput.value = '';
+
+    if (this.jobDrawerOverlay) {
+      this.jobDrawerOverlay.classList.remove('hidden');
+    }
+    if (this.jobDrawer) {
+      this.jobDrawer.classList.remove('hidden');
+      if (this.jobRoleInput) {
+        setTimeout(() => this.jobRoleInput.focus(), 60);
+      }
+    }
+  }
+
   closeAddJobForm() {
+    this.editingJobId = null;
     if (this.jobDrawer) {
       this.jobDrawer.classList.add('hidden');
     }
@@ -2292,11 +2360,11 @@ class TodoistMultiApp {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'kanban-empty';
         emptyDiv.innerHTML = `
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>Add application</span>
+          <span>No applications yet</span>
         `;
         emptyDiv.addEventListener('click', () => {
           this.openAddJobForm(stage.id);
@@ -2317,6 +2385,17 @@ class TodoistMultiApp {
             card.classList.remove('dragging');
           });
 
+          // Clicking card opens Edit Application in drawer
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('.kanban-card-delete') || 
+                e.target.closest('.kanban-card-edit') || 
+                e.target.closest('.kanban-stage-select') || 
+                e.target.closest('a')) {
+              return;
+            }
+            this.openEditJobForm(job.id);
+          });
+
           const dateObj = job.appliedAt ? new Date(job.appliedAt) : new Date();
           const dateFormatted = dateObj.toLocaleDateString('en-IN', {
             month: 'short',
@@ -2332,12 +2411,20 @@ class TodoistMultiApp {
                 <div class="kanban-card-role" title="${escapeHTML(job.role)}">${escapeHTML(job.role)}</div>
                 <div class="kanban-card-company">${escapeHTML(job.company)}</div>
               </div>
-              <button class="kanban-card-delete" title="Delete application" aria-label="Delete application">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-              </button>
+              <div class="kanban-card-actions">
+                <button class="kanban-card-edit" title="Edit application" aria-label="Edit application">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button class="kanban-card-delete" title="Delete application" aria-label="Delete application">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div class="kanban-card-pills">
@@ -2387,6 +2474,15 @@ class TodoistMultiApp {
             </div>
           `;
 
+          // Edit button handler
+          const editBtn = card.querySelector('.kanban-card-edit');
+          if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.openEditJobForm(job.id);
+            });
+          }
+
           // Stage change handler from dropdown
           const stageSelect = card.querySelector('.kanban-stage-select');
           stageSelect.addEventListener('change', (e) => {
@@ -2399,7 +2495,7 @@ class TodoistMultiApp {
             this.showToast(`Moved ${job.company} to ${stageObj ? stageObj.name : newStage}`);
           });
 
-          // Delete button opens confirmation modal (no ugly alert boxes!)
+          // Delete button opens confirmation modal
           const deleteBtn = card.querySelector('.kanban-card-delete');
           deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -2409,6 +2505,23 @@ class TodoistMultiApp {
           colBody.appendChild(card);
         });
       }
+
+      // Persistent bottom "+ Add application" button in every column (Jira-style)
+      const colFooter = document.createElement('div');
+      colFooter.className = 'kanban-col-footer';
+      colFooter.innerHTML = `
+        <button class="kanban-col-bottom-add-btn" aria-label="Add application to ${stage.name}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add application</span>
+        </button>
+      `;
+      colFooter.querySelector('.kanban-col-bottom-add-btn').addEventListener('click', () => {
+        this.openAddJobForm(stage.id);
+      });
+      colEl.appendChild(colFooter);
 
       this.kanbanBoard.appendChild(colEl);
     });
