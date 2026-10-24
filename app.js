@@ -13,7 +13,7 @@ const DEFAULT_FEE_SLOTS = [
     dateTag: '11 Aug',
     collapsed: false,
     students: [
-      { id: 's-1-1', name: 'Abinaya', fee: 9600, completed: false },
+      { id: 's-1-1', name: 'Abinaya', fee: 8600, completed: false },
       { id: 's-1-2', name: 'Nikhel Kesani', fee: 4900, completed: true, completedAt: AUG_11_ISO }
     ]
   },
@@ -23,12 +23,12 @@ const DEFAULT_FEE_SLOTS = [
     dateTag: '11 Aug',
     collapsed: false,
     students: [
-      { id: 's-2-1', name: 'Thenmozhi', fee: 9600, completed: false },
-      { id: 's-2-2', name: 'Jana Priya', fee: 9600, completed: false },
+      { id: 's-2-1', name: 'Thenmozhi', fee: 8600, completed: false },
+      { id: 's-2-2', name: 'Jana Priya', fee: 8600, completed: false },
       { id: 's-2-3', name: 'Aravind', fee: 4000, completed: false },
       { id: 's-2-4', name: 'Santhosh', fee: 4000, completed: false },
       { id: 's-2-5', name: 'Venkatesh', fee: 4000, completed: false },
-      { id: 's-2-6', name: 'Rishikumar', fee: 9600, completed: false }
+      { id: 's-2-6', name: 'Rishikumar', fee: 8600, completed: false }
     ]
   },
   {
@@ -82,7 +82,7 @@ const DEFAULT_FEE_SLOTS = [
     dateTag: '12 Aug',
     collapsed: false,
     students: [
-      { id: 's-6-1', name: 'Dhanalakshmi', fee: 9600, completed: false }
+      { id: 's-6-1', name: 'Dhanalakshmi', fee: 8600, completed: false }
     ]
   },
   {
@@ -106,9 +106,9 @@ const DEFAULT_FEE_SLOTS = [
     dateTag: '11 Aug',
     collapsed: false,
     students: [
-      { id: 's-8-1', name: 'Akash', fee: 9600, completed: false },
-      { id: 's-8-2', name: 'Karthik', fee: 9600, completed: false },
-      { id: 's-8-3', name: 'Prasanna', fee: 9600, completed: false },
+      { id: 's-8-1', name: 'Akash', fee: 8600, completed: false },
+      { id: 's-8-2', name: 'Karthik', fee: 8600, completed: false },
+      { id: 's-8-3', name: 'Prasanna', fee: 8600, completed: false },
       { id: 's-8-4', name: 'Muni Govindharajan', fee: 4100, completed: false }
     ]
   },
@@ -120,9 +120,9 @@ const DEFAULT_FEE_SLOTS = [
     students: [
       { id: 's-9-1', name: 'Akshara', fee: 8100, completed: false },
       { id: 's-9-2', name: 'Bavadharani', fee: 8100, completed: false },
-      { id: 's-9-3', name: 'Muthulakshmi', fee: 9600, completed: false },
-      { id: 's-9-4', name: 'Sona Shree', fee: 9600, completed: false },
-      { id: 's-9-5', name: 'Vinoth Kumar', fee: 9600, completed: false }
+      { id: 's-9-3', name: 'Muthulakshmi', fee: 8600, completed: false },
+      { id: 's-9-4', name: 'Sona Shree', fee: 8600, completed: false },
+      { id: 's-9-5', name: 'Vinoth Kumar', fee: 8600, completed: false }
     ]
   },
   {
@@ -131,15 +131,15 @@ const DEFAULT_FEE_SLOTS = [
     dateTag: '11 Aug',
     collapsed: false,
     students: [
-      { id: 's-10-1', name: 'Lochini', fee: 9600, completed: false },
+      { id: 's-10-1', name: 'Lochini', fee: 8600, completed: false },
       { id: 's-10-2', name: 'Yohamalar', fee: 5400, completed: false },
       { id: 's-10-3', name: 'Karunya', fee: 4000, completed: false },
       { id: 's-10-4', name: 'Lokesh', fee: 4000, completed: false },
-      { id: 's-10-5', name: 'Kavitha', fee: 9600, completed: false },
-      { id: 's-10-6', name: 'Srimathi', fee: 9600, completed: false },
-      { id: 's-10-7', name: 'Ragul', fee: 9600, completed: false },
-      { id: 's-10-8', name: 'Dinesh', fee: 9600, completed: false },
-      { id: 's-10-9', name: 'Harish', fee: 9600, completed: false },
+      { id: 's-10-5', name: 'Kavitha', fee: 8600, completed: false },
+      { id: 's-10-6', name: 'Srimathi', fee: 8600, completed: false },
+      { id: 's-10-7', name: 'Ragul', fee: 8600, completed: false },
+      { id: 's-10-8', name: 'Dinesh', fee: 8600, completed: false },
+      { id: 's-10-9', name: 'Harish', fee: 8600, completed: false },
       { id: 's-10-10', name: 'Lavanya', fee: 5400, completed: false }
     ]
   }
@@ -418,6 +418,9 @@ class TodoistMultiApp {
                   slot.students.forEach(s => {
                     if (s.name && s.name.toLowerCase().includes('nikhel') && s.fee === 2200) {
                       s.fee = 4900;
+                    }
+                    if (s.fee === 9600) {
+                      s.fee = 8600;
                     }
                     // If an item was completed without an explicit user timestamp, associate with its slot dateTag
                     if (s.completed && (!s.completedAt || !s.userSetTimestamp)) {
